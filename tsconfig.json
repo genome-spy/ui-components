@@ -1,0 +1,17 @@
+{
+  "include": ["src/**/*.js"],
+  "exclude": ["src/**/*.test.js"],
+  "compilerOptions": {
+    "module": "NodeNext",
+    "target": "ESNext",
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "allowJs": true,
+    "checkJs": true,
+    "strict": false,
+    "noImplicitAny": true,
+    "types": [],
+    "rootDir": "src",
+    "outDir": "dist",
+    "skipLibCheck": true
+  }
+}
