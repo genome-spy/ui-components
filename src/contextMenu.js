@@ -7,7 +7,7 @@ import {
     shift,
 } from "@floating-ui/dom";
 import { faEllipsisV } from "@fortawesome/free-solid-svg-icons";
-import { renderIcon } from "./icon.js";
+import { renderIcon } from "./internal/icon.js";
 
 /**
  * @typedef {Object} MenuItemContent

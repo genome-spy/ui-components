@@ -1,5 +1,5 @@
 import { LitElement, css, html, nothing } from "lit";
-import { formStyles } from "./formStyles.js";
+import { formStyles } from "./internal/formStyles.js";
 
 /**
  * @typedef {"lt" | "lte" | "eq" | "gte" | "gt"} ComparisonOperatorType

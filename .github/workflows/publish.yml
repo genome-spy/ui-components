@@ -1,0 +1,58 @@
+name: Publish to npm
+
+on:
+    workflow_dispatch:
+        inputs:
+            version:
+                description: Reviewed version on main to publish
+                required: true
+                type: string
+
+permissions: {}
+
+concurrency:
+    group: publish-npm
+    cancel-in-progress: false
+
+jobs:
+    publish:
+        if:
+            github.repository == 'genome-spy/ui-components' && github.ref ==
+            'refs/heads/main'
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            id-token: write
+        steps:
+            - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+              with:
+                  fetch-depth: 0
+                  persist-credentials: false
+            - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+              with:
+                  node-version: "24"
+                  registry-url: https://registry.npmjs.org
+                  package-manager-cache: false
+            - name: Install npm with trusted publishing support
+              run: npm install --global npm@11.21.3
+            - run: npm ci
+            - name: Verify the reviewed version
+              env:
+                  RELEASE_VERSION: ${{ inputs.version }}
+              run: |
+                  npm run release:status -- --output "$RUNNER_TEMP/release-plan.json"
+                  node --input-type=module <<'JS'
+                  import assert from "node:assert/strict";
+                  import { readFileSync } from "node:fs";
+                  import { join } from "node:path";
+
+                  const { version } = JSON.parse(readFileSync("package.json", "utf8"));
+                  assert.equal(version, process.env.RELEASE_VERSION, "Use the version in package.json.");
+                  const changelog = readFileSync("CHANGELOG.md", "utf8");
+                  assert.ok(changelog.split(/\r?\n/).includes(`## ${version}`), "Merge the release PR before publishing.");
+                  const plan = JSON.parse(readFileSync(join(process.env.RUNNER_TEMP, "release-plan.json"), "utf8"));
+                  assert.equal(plan.releases.length, 0, "The release PR must consume the pending changesets.");
+                  JS
+            - run: npm run check
+            - name: Publish with npm trusted publishing
+              run: npm exec -- changeset publish --no-git-tag

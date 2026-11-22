@@ -4,7 +4,7 @@ import {
     faTimesCircle,
 } from "@fortawesome/free-solid-svg-icons";
 import { css, html, nothing } from "lit";
-import { renderIcon } from "./icon.js";
+import { renderIcon } from "./internal/icon.js";
 import BaseDialog, { showDialogOk } from "./dialog.js";
 
 /**

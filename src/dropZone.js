@@ -1,6 +1,6 @@
 import { LitElement, html, css } from "lit";
 import { faUpload } from "@fortawesome/free-solid-svg-icons";
-import { faStyles, renderIcon } from "./icon.js";
+import { faStyles, renderIcon } from "./internal/icon.js";
 
 /**
  * @typedef {import("./filePicker.js").FilesChosenEvent} FilesChosenEvent

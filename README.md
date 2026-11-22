@@ -1,8 +1,8 @@
 # GenomeSpy UI Components
 
 Reusable Lit web components used across GenomeSpy apps, including GenomeSpy App
-and Playground. They are free to use under the MIT license. The APIs may change
-in any release.
+and Playground. They are free to use under the MIT license. The package is in
+early development. Expect API changes as apps adopt it.
 
 Install `@genome-spy/ui-components` with Lit 3.
 
@@ -308,7 +308,12 @@ Run `npm run build-storybook` to build a static showcase under
 
 ## Development
 
-Run `npm test` and `npm run test:tsc` after installing dependencies. `npm pack`
-builds the TypeScript declarations and Custom Elements Manifest before creating
-the package. Run `npm run test:packed-consumer` with Playwright Chromium
-installed to check the packaged imports and components in a browser.
+After `npm ci`, run `npm run check` for ESLint, Prettier, TypeScript, and
+Vitest. Run `npm test -- src/dialog.test.js` to check a single test file.
+
+`npm pack` builds the TypeScript declarations and Custom Elements Manifest
+before creating the package. Run `npm run test:packed-consumer` with Playwright
+Chromium installed to check the packaged imports and components in a browser.
+
+See [Contributing](CONTRIBUTING.md) for Changesets, npm releases, and Storybook
+deployment.

@@ -1,6 +1,6 @@
 import { LitElement, html, css, nothing } from "lit";
-import { faStyles, renderIcon } from "./icon.js";
-import { formStyles } from "./formStyles.js";
+import { faStyles, renderIcon } from "./internal/icon.js";
+import { formStyles } from "./internal/formStyles.js";
 
 const DEFAULT_ACTION_INPUT_TYPES = new Set([
     "text",

@@ -1,5 +1,5 @@
 import { css, html, nothing } from "lit";
-import BaseDialog from "./dialog.js";
+import BaseDialog from "../dialog.js";
 
 /**
  * @typedef {{logicalWidth: number, logicalHeight: number}} ExportDimensions

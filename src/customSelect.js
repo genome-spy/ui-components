@@ -1,6 +1,6 @@
 import { LitElement, html, css } from "lit";
 import { computePosition, autoUpdate, flip, offset } from "@floating-ui/dom";
-import { formStyles } from "./formStyles.js";
+import { formStyles } from "./internal/formStyles.js";
 
 /**
  * Choose one value from a popover. A custom renderer can show the same rich

@@ -20,7 +20,7 @@ import {
 } from "@genome-spy/ui-components/contextMenu";
 import "@genome-spy/ui-components/contextMenu.css";
 import "@genome-spy/ui-components/form.css";
-import { renderIcon } from "../src/icon.js";
+import { renderIcon } from "../src/internal/icon.js";
 import "./theming.css";
 import "./sequenceDesignerMenu.css";
 import sequenceDesignerMenuCss from "./sequenceDesignerMenu.css?raw";

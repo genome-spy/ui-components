@@ -1,6 +1,6 @@
 import { LitElement, css, html, nothing } from "lit";
 import { live } from "lit/directives/live.js";
-import { formStyles } from "./formStyles.js";
+import { formStyles } from "./internal/formStyles.js";
 
 /**
  * @typedef {object} SegmentedControlOption

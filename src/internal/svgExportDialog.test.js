@@ -3,7 +3,7 @@
 import { afterEach, beforeAll, describe, expect, test, vi } from "vitest";
 
 import SvgExportDialog from "./svgExportDialog.js";
-import "./define/imageExportDialog.js";
+import "../define/imageExportDialog.js";
 
 beforeAll(() => {
     HTMLDialogElement.prototype.showModal = function () {

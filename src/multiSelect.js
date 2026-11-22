@@ -1,6 +1,6 @@
 import { LitElement, css, html, nothing } from "lit";
 import { autoUpdate, computePosition, flip, offset } from "@floating-ui/dom";
-import { formStyles } from "./formStyles.js";
+import { formStyles } from "./internal/formStyles.js";
 
 let nextElementId = 0;
 

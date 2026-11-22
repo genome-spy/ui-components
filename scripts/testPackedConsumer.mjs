@@ -1,5 +1,7 @@
+import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { cp, mkdir, mkdtemp, readFile, rm, symlink } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import process from "node:process";
@@ -32,6 +34,15 @@ try {
         installed,
         "--strip-components=1",
     ]);
+
+    const resolveFromConsumer = createRequire(
+        join(consumerDir, "package.json")
+    ).resolve;
+    for (const subpath of ["internal/icon", "dialog.test"]) {
+        assert.throws(() => resolveFromConsumer(pack.name + "/" + subpath), {
+            code: "ERR_PACKAGE_PATH_NOT_EXPORTED",
+        });
+    }
 
     // Reuse npm ci's dependencies while resolving the library from the archive.
     const manifest = JSON.parse(

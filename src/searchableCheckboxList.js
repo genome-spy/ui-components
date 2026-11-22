@@ -1,8 +1,8 @@
 import { faArrowUp } from "@fortawesome/free-solid-svg-icons";
 import { LitElement, css, html, nothing } from "lit";
 import { repeat } from "lit/directives/repeat.js";
-import { faStyles, renderIcon } from "./icon.js";
-import { formStyles } from "./formStyles.js";
+import { faStyles, renderIcon } from "./internal/icon.js";
+import { formStyles } from "./internal/formStyles.js";
 
 /**
  * @typedef {string | number | boolean} Scalar
