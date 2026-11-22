@@ -38,6 +38,13 @@ For later releases, run **Publish to npm** on `main` and enter the reviewed
 version. The workflow checks the version and changelog and publishes through
 OIDC. Before dispatching, verify that CI passed for the release commit.
 
+### Package previews
+
+Install the [pkg.pr.new GitHub App](https://github.com/apps/pkg-pr-new) on the
+public repository. In **Actions → Publish UI Components preview**, run the
+workflow on the branch you want to test. The run summary gives you an install
+command for that commit. Preview versions are separate from npm releases.
+
 ## Storybook on GitHub Pages
 
 Select **GitHub Actions** under **Settings → Pages → Build and deployment**.

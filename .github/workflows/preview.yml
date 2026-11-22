@@ -1,0 +1,52 @@
+name: Publish UI Components preview
+
+on:
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+jobs:
+    preview:
+        if:
+            github.repository == 'genome-spy/ui-components' &&
+            !github.event.repository.private
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+        steps:
+            - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+              with:
+                  ref: ${{ github.sha }}
+                  persist-credentials: false
+            - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+              with:
+                  node-version: "24"
+                  package-manager-cache: false
+            - run: npm ci
+            - run: npm run check
+            - name: Publish preview
+              run: |
+                  npm exec -- pkg-pr-new publish \
+                    --previewVersion \
+                    --comment=off \
+                    --no-template \
+                    --json "$RUNNER_TEMP/preview.json" \
+                    .
+            - name: Show the installation command
+              run: |
+                  node --input-type=module <<'JS'
+                  import { appendFileSync, readFileSync } from "node:fs";
+                  import { join } from "node:path";
+
+                  const { packages: [{ url }] } = JSON.parse(
+                      readFileSync(join(process.env.RUNNER_TEMP, "preview.json"), "utf8")
+                  );
+                  appendFileSync(process.env.GITHUB_STEP_SUMMARY, [
+                      "Preview of commit " + process.env.GITHUB_SHA,
+                      "",
+                      "```sh",
+                      "npm install " + url,
+                      "```",
+                      "",
+                  ].join("\n"));
+                  JS

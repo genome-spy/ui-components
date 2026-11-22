@@ -23,6 +23,8 @@ description: >
   Elements Manifest are in the tarball, and that styles and `define/`
   registration modules preserve their `sideEffects` entries. Tests and Storybook
   are development assets.
+- For an integration preview, use **Publish UI Components preview** on the
+  branch under test and use the commit-specific URL from its run summary.
 - When the user authorizes publication, run the **Publish to npm** workflow on
   `main` with the reviewed version. For a first release, follow the registry
   bootstrap in the release process. Downstream apps can pin the published
