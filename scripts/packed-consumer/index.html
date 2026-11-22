@@ -24,6 +24,17 @@
             Open menu
         </button>
         <gs-upload-drop-zone></gs-upload-drop-zone>
+        <style>
+            #custom-drop-zone::part(drop-zone) {
+                min-block-size: 180px;
+            }
+        </style>
+        <gs-upload-drop-zone id="custom-drop-zone">
+            <gs-file-picker slot="picker" accept=".csv"
+                >Choose sample files</gs-file-picker
+            >
+        </gs-upload-drop-zone>
+        <output id="chosen-files"></output>
         <script type="module" src="./main.ts"></script>
     </body>
 </html>

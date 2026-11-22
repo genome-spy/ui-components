@@ -40,3 +40,41 @@ export const AcceptCsv = {
     args: { accept: ".csv,text/csv", dropText: "Drop a CSV file here or" },
     render: renderDropZone,
 };
+
+export const CustomPicker = {
+    render: () => html`
+        <style>
+            .landing-drop::part(drop-zone) {
+                box-sizing: border-box;
+                min-block-size: 15rem;
+                align-items: stretch;
+                padding: 0;
+            }
+
+            .landing-drop gs-file-picker {
+                display: flex;
+                flex: 1;
+                --gs-control-border: transparent;
+                --gs-file-picker-background: transparent;
+                --gs-button-selected-background: transparent;
+            }
+
+            .landing-drop gs-file-picker::part(button) {
+                flex: 1;
+            }
+        </style>
+        <div style="max-inline-size: 500px;">
+            <gs-upload-drop-zone
+                class="landing-drop"
+                @gs-files-chosen=${showSelectedFiles}
+            >
+                <gs-file-picker slot="picker" accept=".csv,text/csv"
+                    >Drop a CSV file or choose one</gs-file-picker
+                >
+            </gs-upload-drop-zone>
+            <output
+                style="display: block; margin-block-start: 0.75rem;"
+            ></output>
+        </div>
+    `,
+};

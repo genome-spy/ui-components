@@ -12,8 +12,9 @@ import { faStyles, renderIcon } from "./internal/icon.js";
  *
  * @tag gs-upload-drop-zone
  * @fires {FilesChosenEvent} gs-files-chosen - Bubbles across shadow roots with a FileList in `detail.files`.
- * @csspart drop-zone - Surface that receives file drops.
- * @csspart picker-button - Button inside the nested file picker.
+ * @slot picker - Custom picker content. Configure a slotted file picker's accepted formats and label on the picker itself.
+ * @csspart drop-zone - Content-sized drop surface. Set min-block-size to give the content more room.
+ * @csspart picker-button - Button inside the default file picker.
  * @cssprop --gs-control-border - Drop surface border.
  * @cssprop --gs-drop-zone-radius - Drop surface corner radius.
  * @cssprop --gs-drop-zone-active-background - Fill during a drag.
@@ -29,11 +30,11 @@ export default class UploadDropZone extends LitElement {
 
     constructor() {
         super();
-        /** Extensions or MIME types offered by the picker. Validate dropped files in the caller. */
+        /** Extensions or MIME types offered by the default picker. Validate dropped files in the caller. */
         this.accept = "";
-        /** Allow multiple files in the picker. Drops can contain multiple files independently. */
+        /** Allow multiple files in the default picker. Drops can contain multiple files independently. */
         this.multiple = false;
-        /** Prompt next to the file picker. */
+        /** Prompt next to the default file picker. */
         this.dropText = "Drop a file here or";
         this._dragOver = false;
     }
@@ -95,16 +96,18 @@ export default class UploadDropZone extends LitElement {
                     this.#onDragLeave(e)}
                 @drop=${(/** @type {DragEvent} */ e) => this.#onDrop(e)}
             >
-                <div class="drop-inner">
-                    <div class="drop-icon">${renderIcon(faUpload)}</div>
-                    <div class="drop-text">${this.dropText}</div>
-                    <gs-file-picker
-                        .accept=${this.accept}
-                        .multiple=${this.multiple}
-                        exportparts="button: picker-button"
-                        >Choose file</gs-file-picker
-                    >
-                </div>
+                <slot name="picker">
+                    <div class="drop-inner">
+                        <div class="drop-icon">${renderIcon(faUpload)}</div>
+                        <div class="drop-text">${this.dropText}</div>
+                        <gs-file-picker
+                            .accept=${this.accept}
+                            .multiple=${this.multiple}
+                            exportparts="button: picker-button"
+                            >Choose file</gs-file-picker
+                        >
+                    </div>
+                </slot>
             </div>
         `;
     }

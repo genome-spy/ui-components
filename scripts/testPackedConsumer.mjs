@@ -207,11 +207,52 @@ try {
         );
         await expect(operand).toHaveValue("7");
 
-        const dropIcon = page.locator(
-            "gs-upload-drop-zone svg[data-icon=upload]"
-        );
+        const defaultDropZone = page.locator("gs-upload-drop-zone").first();
+        const dropIcon = defaultDropZone.locator("svg[data-icon=upload]");
         await expect(dropIcon).toHaveCSS("height", "32px");
         await expect(dropIcon.locator("path[d]")).toBeVisible();
+
+        const dropZone = page.locator("#custom-drop-zone");
+        await expect(
+            dropZone.getByRole("button", { name: "Choose file", exact: true })
+        ).toHaveCount(0);
+        await expect(dropZone.locator('[part="drop-zone"]')).toHaveCSS(
+            "min-block-size",
+            "180px"
+        );
+        await dropZone.evaluate((element) => {
+            const output = element.ownerDocument.querySelector("#chosen-files");
+            element.addEventListener("gs-files-chosen", (event) => {
+                for (const file of event.detail.files) {
+                    output.append(file.name + " ");
+                }
+            });
+        });
+        const picker = dropZone.getByRole("button", {
+            name: "Choose sample files",
+        });
+        const chooser = page.waitForEvent("filechooser");
+        await picker.press("Enter");
+        const openedPicker = await chooser;
+        expect(await openedPicker.element().getAttribute("accept")).toBe(
+            ".csv"
+        );
+        await openedPicker.setFiles({
+            name: "picked.csv",
+            mimeType: "text/csv",
+            buffer: Buffer.from("sample\n1"),
+        });
+
+        const transfer = await page.evaluateHandle(() => {
+            const data = new globalThis.DataTransfer();
+            data.items.add(new File(["sample\n2"], "dropped.csv"));
+            return data;
+        });
+        await picker.dispatchEvent("drop", { dataTransfer: transfer });
+        await transfer.dispose();
+        await expect(page.locator("#chosen-files")).toHaveText(
+            "picked.csv dropped.csv"
+        );
 
         expect(errors).toEqual([]);
         process.stdout.write(

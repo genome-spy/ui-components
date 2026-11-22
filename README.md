@@ -34,7 +34,9 @@ The file picker emits a bubbling, composed `gs-files-chosen` event with a
 `FileList` in `event.detail.files`. It also exposes `openPicker()` for opening
 the picker from a user gesture. Use `define/dropZone` for
 `<gs-upload-drop-zone>`, which includes the picker and emits the same event on
-drop.
+drop. Use the `picker` slot to supply your own picker and configure its label
+and accepted formats. Set `min-block-size` on `::part(drop-zone)` to give a drop
+area more room. See the **Custom Picker** story for an example.
 
 Class and utility imports from the package root or a component subpath leave
 registration to the caller. `showMessageDialog()` registers the message dialog
