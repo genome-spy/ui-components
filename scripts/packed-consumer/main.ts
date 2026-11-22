@@ -1,4 +1,5 @@
-import { faXmark } from "@fortawesome/free-solid-svg-icons";
+import { faCheck } from "@fortawesome/free-solid-svg-icons";
+import { html } from "lit";
 import {
     BaseDialog,
     createMenuController,
@@ -31,9 +32,39 @@ if (
 }
 
 class FixtureDialog extends BaseDialog {
-    renderButtons() {
+    static properties = {
+        ...BaseDialog.properties,
+        pending: { state: true },
+    };
+
+    declare pending: boolean;
+
+    constructor() {
+        super();
+        this.pending = false;
+    }
+
+    protected canCancel() {
+        return !this.pending;
+    }
+
+    protected renderBody() {
+        return html`<button
+            type="button"
+            @click=${() => {
+                this.pending = !this.pending;
+            }}
+        >
+            ${this.pending ? "End pending work" : "Start pending work"}
+        </button>`;
+    }
+
+    protected renderButtons() {
         return [
-            this.makeButton("Close dialog", () => {}, { iconDef: faXmark }),
+            this.makeCloseButton("Close dialog", { autofocus: true }),
+            this.makeButton("Apply", () => this.finish({ ok: true }), {
+                iconDef: faCheck,
+            }),
         ];
     }
 }
@@ -64,10 +95,12 @@ grid.items = Array.from({ length: 200 }, (_, i) => ({
 }));
 
 document.querySelector("#open-dialog")!.addEventListener("click", async () => {
+    const output = document.querySelector("#dialog-result")!;
+    output.textContent = "";
     const result = await showDialog("gs-fixture-dialog", (dialog) => {
         dialog.dialogTitle = "Dialog lifecycle";
     });
-    document.querySelector("#dialog-result")!.textContent = result.reason ?? "";
+    output.textContent = result.ok ? "applied" : (result.reason ?? "");
 });
 
 const opener = document.querySelector<HTMLButtonElement>("#open-menu")!;

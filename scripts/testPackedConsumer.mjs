@@ -136,14 +136,49 @@ try {
         ).toBeInViewport();
         await expect(header).toBeInViewport();
 
-        await page.getByRole("button", { name: "Open dialog" }).click();
-        const close = page.getByRole("button", { name: "Close dialog" });
+        const dialogOpener = page.getByRole("button", { name: "Open dialog" });
+        const dialog = page.getByRole("dialog", { name: "Dialog lifecycle" });
+        const dialogResult = page.locator("#dialog-result");
+        await dialogOpener.click();
+        const close = dialog.getByRole("button", { name: "Close dialog" });
+        const apply = dialog.getByRole("button", {
+            name: "Apply",
+            exact: true,
+        });
         await expect(
-            close.locator("svg[data-icon=xmark] path[d]")
+            apply.locator("svg[data-icon=check] path[d]")
         ).toBeVisible();
+        await expect(close).toBeFocused();
+
+        const startPending = dialog.getByRole("button", {
+            name: "Start pending work",
+        });
+        await startPending.click();
+        await expect(close).toBeDisabled();
+        await expect(dialog).toHaveAttribute("closedby", "none");
+        await page.keyboard.press("Escape");
+        await dialog.evaluate((element) => element.requestClose());
+        await expect(dialog).toBeVisible();
+        await expect(dialogResult).toBeEmpty();
+
+        await dialog.getByRole("button", { name: "End pending work" }).click();
+        await expect(close).toBeEnabled();
         await close.click();
-        await expect(page.getByRole("dialog")).toHaveCount(0);
-        await expect(page.locator("#dialog-result")).toHaveText("cancel");
+        await expect(dialog).toHaveCount(0);
+        await expect(dialogResult).toHaveText("cancel");
+        await expect(dialogOpener).toBeFocused();
+
+        await dialogOpener.click();
+        await page.keyboard.press("Escape");
+        await expect(dialog).toHaveCount(0);
+        await expect(dialogResult).toHaveText("cancel");
+
+        await dialogOpener.click();
+        await startPending.click();
+        await apply.click();
+        await expect(dialog).toHaveCount(0);
+        await expect(dialogResult).toHaveText("applied");
+        await expect(dialogOpener).toBeFocused();
 
         const opener = page.getByRole("button", { name: "Open menu" });
         await opener.click();

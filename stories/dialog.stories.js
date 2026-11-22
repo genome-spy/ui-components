@@ -75,6 +75,51 @@ class SetupDialog extends BaseDialog {
 
 customElements.define("gs-story-setup-dialog", SetupDialog);
 
+class ConfirmSaveDialog extends BaseDialog {
+    static properties = {
+        ...super.properties,
+        saving: { state: true },
+    };
+
+    constructor() {
+        super();
+        this.dialogTitle = "Save display settings?";
+        this.dialogDescribedBy = "save-status";
+        this.saving = false;
+    }
+
+    canCancel() {
+        return !this.saving;
+    }
+
+    renderBody() {
+        return html`<p id="save-status" role="status">
+            ${
+                this.saving
+                    ? "Saving display settings…"
+                    : "Apply the new settings to this workspace."
+            }
+        </p>`;
+    }
+
+    renderButtons() {
+        return [
+            this.makeCloseButton("Cancel", { autofocus: true }),
+            this.makeButton(
+                "Save",
+                async () => {
+                    this.saving = true;
+                    await new Promise((resolve) => setTimeout(resolve, 2000));
+                    this.finish({ ok: true });
+                },
+                { isPrimary: true, disabled: this.saving }
+            ),
+        ];
+    }
+}
+
+customElements.define("gs-story-confirm-save-dialog", ConfirmSaveDialog);
+
 export default {
     title: "Components/Dialog",
     tags: ["autodocs"],
@@ -85,6 +130,7 @@ export default {
                     "Extend `BaseDialog` and register your custom element. " +
                     "Render fields in `renderBody()` and build footer actions in `renderButtons()`. " +
                     "Call `finish({ ok, data })` to resolve the caller's result. " +
+                    "Use `canCancel()` to guard dismissal and `autofocus` to choose an initial action. " +
                     "Use `showDialog(tagName, configure, { mount })` to open it under a themed container.",
             },
         },
@@ -112,6 +158,32 @@ export const FormWizard = {
             <output
                 style="display: block; margin-block-start: 0.75rem;"
             ></output>
+        </div>
+    `,
+};
+
+export const SaveConfirmation = {
+    render: () => html`
+        <div>
+            <button
+                type="button"
+                @click=${(/** @type {MouseEvent} */ event) => {
+                    const button = /** @type {HTMLButtonElement} */ (
+                        event.currentTarget
+                    );
+                    return showDialog(
+                        "gs-story-confirm-save-dialog",
+                        undefined,
+                        {
+                            mount: /** @type {HTMLElement} */ (
+                                button.parentElement
+                            ),
+                        }
+                    );
+                }}
+            >
+                Confirm changes
+            </button>
         </div>
     `,
 };

@@ -357,13 +357,29 @@ export default class BaseDialog extends LitElement {
     }
 
     /**
+     * Return whether the user can dismiss the dialog with a native close
+     * request or the built-in close button. Override using reactive state
+     * and show a status message while dismissal is blocked.
+     *
+     * @protected
+     * @returns {boolean}
+     */
+    canCancel() {
+        return true;
+    }
+
+    /**
      * ESC or native cancel event handler.
      *
      * @param {Event} [event]
      */
     #onDialogCancel(event) {
         event?.preventDefault();
-        if (!this.#dialog.open || this.#dialog.classList.contains("closing")) {
+        if (
+            !this.#dialog.open ||
+            this.#dialog.classList.contains("closing") ||
+            !this.canCancel()
+        ) {
             return;
         }
 
@@ -470,11 +486,13 @@ export default class BaseDialog extends LitElement {
     /**
      * Creates a button for the dialog footer.
      * The dialog is closed automatically unless the callback returns a truthy value.
+     * Set the autofocus option on the action that should receive initial focus.
      *
      * @param {string} title
      * @param {() => boolean | void | Promise<boolean | void>} callback If returns truthy value, dialog closing is canceled
      * @param {{
      *  iconDef?: import("@fortawesome/free-solid-svg-icons").IconDefinition,
+     *  autofocus?: boolean,
      *  disabled?: boolean,
      *  preventMouseDown?: boolean,
      *  isPrimary?: boolean,
@@ -485,6 +503,7 @@ export default class BaseDialog extends LitElement {
     makeButton(title, callback, options = {}) {
         const {
             iconDef,
+            autofocus = false,
             disabled = false,
             preventMouseDown = false,
             isPrimary = false,
@@ -503,6 +522,7 @@ export default class BaseDialog extends LitElement {
             part=${isPrimary ? "button primary-button" : "button"}
             type="button"
             title=${title}
+            ?autofocus=${autofocus}
             ?disabled=${disabled}
             ?data-primary=${isPrimary}
             @mousedown=${
@@ -523,17 +543,21 @@ export default class BaseDialog extends LitElement {
     }
 
     /**
+     * Create a close action that honors canCancel().
+     *
+     * @param {string} [label]
+     * @param {{autofocus?: boolean}} [options]
      * @protected
      * @returns {import("lit").HTMLTemplateResult}
      */
-    makeCloseButton(label = "Close") {
+    makeCloseButton(label = "Close", { autofocus = false } = {}) {
         return this.makeButton(
             label,
             () => {
                 this.onCloseButtonClick();
                 return true;
             },
-            { preventMouseDown: true }
+            { autofocus, disabled: !this.canCancel(), preventMouseDown: true }
         );
     }
 
@@ -564,6 +588,7 @@ export default class BaseDialog extends LitElement {
                 aria-labelledby=${this.dialogTitle ? "dialog-title" : nothing}
                 aria-label="GenomeSpy"
                 aria-describedby=${this.dialogDescribedBy || nothing}
+                closedby=${this.canCancel() ? nothing : "none"}
                 @cancel=${this.#onDialogCancel}
                 @close=${this.#onDialogClose}
             >

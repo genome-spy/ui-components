@@ -90,7 +90,9 @@ Subclass `BaseDialog` from `/dialog`, register the subclass, and call
 persistent dialogs, set `openOnConnect` to false and call `openDialog()` after
 the element's first render. Set `dialogDescribedBy` to the ID of a short
 description rendered in the dialog's shadow root so assistive technology can
-announce it.
+announce it. Override `canCancel()` to guard dismissal during pending work. Use
+`{ autofocus: true }` with `makeButton()` or `makeCloseButton()` to choose the
+initial action.
 
 The `faStyles` export from `@genome-spy/ui-components/styles` provides baseline
 sizing and alignment for inline Font Awesome SVGs in a Lit shadow root.
