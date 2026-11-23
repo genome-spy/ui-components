@@ -120,6 +120,45 @@ describe("SvgExportDialog", () => {
         });
     });
 
+    test("keeps required raster layers when dense rasterization is disabled", async () => {
+        const dialog = createDialog();
+        vi.mocked(dialog.source.imageExport.analyzeSvg).mockResolvedValue({
+            layers: [
+                {
+                    ...createLayer("heatmap", "raster", 1, "Contact matrix"),
+                    requiresRasterization: true,
+                },
+                createLayer("coverage", "rect", 10_000, "Read coverage"),
+            ],
+        });
+        document.body.appendChild(dialog);
+
+        await vi.waitFor(() => {
+            expect(getPreviewText(dialog)).toContain(
+                "2 layers will be rasterized"
+            );
+        });
+
+        getInput(dialog, "svgRasterizeDenseMarks").click();
+        await dialog.updateComplete;
+
+        expect(getPreviewText(dialog)).toContain("1 layer will be rasterized");
+        expect(getPreviewText(dialog)).toContain("Contact matrix");
+        expect(getPreviewText(dialog)).not.toContain("Read coverage");
+        expect(getInput(dialog, "svgMaxVectorInstances").disabled).toBe(true);
+
+        const pixelRatio = getInput(dialog, "svgRasterPixelRatio");
+        expect(pixelRatio.disabled).toBe(false);
+        pixelRatio.value = "3";
+        pixelRatio.dispatchEvent(new Event("input", { bubbles: true }));
+
+        expect(dialog.getExportOptions()).toEqual({
+            logicalWidth: 800,
+            logicalHeight: 600,
+            rasterization: { pixelRatio: 3 },
+        });
+    });
+
     test("debounces preview updates without reanalyzing", async () => {
         const dialog = createDialog();
         const analyzeSvgExport = vi.mocked(

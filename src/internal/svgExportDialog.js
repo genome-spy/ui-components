@@ -170,13 +170,22 @@ export default class SvgExportDialog extends ImageExportDialog {
         }, 500);
     }
 
+    get #canSetRasterScale() {
+        return (
+            this.rasterizeDenseMarks ||
+            this._layers.some((layer) => layer.requiresRasterization)
+        );
+    }
+
     /** @returns {import("./imageExportSupport.js").SvgExportOptions} */
     getExportOptions() {
         return {
             ...this._dimensions,
-            ...(this.rasterizeDenseMarks && {
+            ...(this.#canSetRasterScale && {
                 rasterization: {
-                    maxVectorInstances: this.maxVectorInstances,
+                    ...(this.rasterizeDenseMarks && {
+                        maxVectorInstances: this.maxVectorInstances,
+                    }),
                     pixelRatio: this.rasterPixelRatio,
                 },
             }),
@@ -185,13 +194,15 @@ export default class SvgExportDialog extends ImageExportDialog {
 
     /** @returns {import("./imageExportSupport.js").SvgExportLayer[]} */
     getRasterizedLayers() {
-        return this.rasterizeDenseMarks &&
-            Number.isFinite(this._previewMaxVectorInstances)
-            ? this._layers.filter(
-                  (layer) =>
-                      layer.instanceCount > this._previewMaxVectorInstances
-              )
-            : [];
+        const threshold = this._previewMaxVectorInstances;
+        const rasterizeDenseMarks =
+            this.rasterizeDenseMarks && Number.isFinite(threshold);
+
+        return this._layers.filter(
+            (layer) =>
+                layer.requiresRasterization ||
+                (rasterizeDenseMarks && layer.instanceCount > threshold)
+        );
     }
 
     renderBody() {
@@ -201,9 +212,9 @@ export default class SvgExportDialog extends ImageExportDialog {
             <div class="gs-alert info">
                 ${renderIcon(faInfoCircle)}
                 <span>
-                    SVG export keeps the image as editable vector graphics.
-                    Dense layers can be embedded as raster images to keep the
-                    file smaller and faster to load.
+                    SVG keeps vector layers editable and embeds raster layers as
+                    images. You can also rasterize dense vector layers to reduce
+                    file size.
                 </span>
             </div>
 
@@ -234,7 +245,7 @@ export default class SvgExportDialog extends ImageExportDialog {
                             this.rasterizeDenseMarks = input.checked;
                         })}
                     />
-                    Rasterize dense marks
+                    Rasterize dense vector layers
                 </label>
                 <small>
                     Adjacent dense layers are combined into the same embedded
@@ -269,11 +280,12 @@ export default class SvgExportDialog extends ImageExportDialog {
                     <input
                         type="range"
                         id="svgRasterPixelRatio"
+                        aria-describedby="svgRasterPixelRatioHelp"
                         min="0.5"
                         max="4"
                         step="0.5"
                         .value=${"" + this.rasterPixelRatio}
-                        ?disabled=${!this.rasterizeDenseMarks || this._saving}
+                        ?disabled=${!this.#canSetRasterScale || this._saving}
                         @input=${inputListener((input) => {
                             this.rasterPixelRatio = input.valueAsNumber;
                         })}
@@ -282,7 +294,7 @@ export default class SvgExportDialog extends ImageExportDialog {
                         >${this.rasterPixelRatio}</span
                     >
                 </div>
-                <small>
+                <small id="svgRasterPixelRatioHelp">
                     Controls the resolution of embedded raster layers. Higher
                     values produce sharper images but increase file size. Vector
                     elements are unaffected.
@@ -310,11 +322,7 @@ export default class SvgExportDialog extends ImageExportDialog {
     }
 
     #renderRasterizationPreview() {
-        if (!this.rasterizeDenseMarks) {
-            return html`<div class="raster-preview">
-                All layers will remain vector.
-            </div>`;
-        } else if (this._analyzing) {
+        if (this._analyzing) {
             return html`<div class="raster-preview">
                 Analyzing visible layers…
             </div>`;
@@ -327,7 +335,11 @@ export default class SvgExportDialog extends ImageExportDialog {
         const layers = this.getRasterizedLayers();
         if (!layers.length) {
             return html`<div class="raster-preview">
-                No visible layers exceed the threshold.
+                ${
+                    this.rasterizeDenseMarks
+                        ? "No visible layers exceed the threshold."
+                        : "All layers will remain vector."
+                }
             </div>`;
         }
 

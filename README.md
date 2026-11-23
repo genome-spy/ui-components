@@ -152,10 +152,11 @@ await showDialog(
 ```
 
 Use `gs-save-image-dialog` for PNG. The PNG form offers scale and background
-settings. The SVG form previews which layers exceed the rasterization threshold.
-Both accept a `filename`. Set `openOnConnect = false` before mounting and call
-`show()` on an existing dialog to retain its settings between exports. See
-**Components → Image Export Dialogs** in Storybook for examples.
+settings. The SVG form previews layers that will be embedded as images,
+including layers that require rasterization when the optional threshold is
+disabled. Both accept a `filename`. Set `openOnConnect = false` before mounting
+and call `show()` on an existing dialog to retain its settings between exports.
+See **Components → Image Export Dialogs** in Storybook for examples.
 
 ## Style native forms
 

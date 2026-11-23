@@ -15,16 +15,18 @@ import BaseDialog from "../dialog.js";
 
 /**
  * @typedef {ExportDimensions & {
- *     rasterization?: {maxVectorInstances: number, pixelRatio: number},
+ *     rasterization?: {maxVectorInstances?: number, pixelRatio: number},
  * }} SvgExportOptions
  */
 
 /**
+ * A layer that requires rasterization is always embedded as an image.
  * @typedef {{
  *     viewTitle?: string,
  *     viewPath: string,
  *     markType: string,
  *     instanceCount: number,
+ *     requiresRasterization?: boolean,
  * }} SvgExportLayer
  */
 
@@ -43,9 +45,11 @@ import BaseDialog from "../dialog.js";
  */
 
 /**
+ * Sources that report required raster layers must accept a pixel ratio
+ * without an instance threshold.
  * @typedef {SizedSource & {
  *     imageExport: {
- *         svg: (options: SvgExportOptions) => Promise<{blob: Blob, warnings: string[], rasterized?: readonly unknown[]}>,
+ *         svg(options: SvgExportOptions): Promise<{blob: Blob, warnings: string[], rasterized?: readonly unknown[]}>,
  *         analyzeSvg: (options: ExportDimensions) => Promise<{layers: SvgExportLayer[]}>,
  *     },
  * }} SvgExportSource
