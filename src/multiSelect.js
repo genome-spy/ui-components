@@ -963,6 +963,7 @@ export default class MultiSelect extends LitElement {
         if (event.key === "Escape" && (this._open || this._loading)) {
             event.preventDefault();
             event.stopPropagation();
+            this._query = "";
             this.#closeSuggestions();
         }
     }

@@ -185,7 +185,7 @@ it("keeps App's exact-match delimiter and prefix checks", async () => {
     expect(field.value).toEqual(["Sample"]);
 });
 
-it("keeps dismissed results closed until the user opens the popup again", async () => {
+it("clears a pending query on Escape and ignores its results", async () => {
     const lookup = Promise.withResolvers();
     const { field, input, type, key, searchNow } = await setup(
         () => lookup.promise
@@ -195,10 +195,11 @@ it("keeps dismissed results closed until the user opens the popup again", async 
     expect(input.getAttribute("aria-busy")).toBe("true");
     expect(input.getAttribute("aria-expanded")).toBe("false");
 
-    key("Escape");
+    expect(key("Escape").defaultPrevented).toBe(true);
     lookup.resolve(["alpha"]);
     await vi.advanceTimersByTimeAsync(0);
 
+    expect(input.value).toBe("");
     expect(input.getAttribute("aria-expanded")).toBe("false");
     expect(input.hasAttribute("aria-activedescendant")).toBe(false);
     key("Enter");

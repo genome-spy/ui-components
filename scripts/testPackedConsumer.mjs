@@ -170,12 +170,6 @@ try {
             page.getByText("Showing 1 of 3 matches · 16 in catalogue")
         ).toBeVisible();
         await expect(suggestions.getByRole("status")).toHaveCount(0);
-        await search.press("Escape");
-        await expect(groupOption).toHaveCount(0);
-        await expect(search).not.toHaveAttribute("aria-activedescendant");
-        await search.press("ArrowDown");
-        await expect(groupOption).toBeVisible();
-
         await search.evaluate((input) => input.setSelectionRange(0, 0));
         const searchBox = await search.boundingBox();
         assert(searchBox);
@@ -183,6 +177,14 @@ try {
             position: { x: searchBox.width - 8, y: searchBox.height / 2 },
         });
         expect(await search.evaluate((input) => input.selectionStart)).toBe(5);
+
+        await search.press("Escape");
+        await expect(groupOption).toHaveCount(0);
+        await expect(search).toHaveValue("");
+        await expect(search).toBeFocused();
+        await expect(search).not.toHaveAttribute("aria-activedescendant");
+        await search.press("ArrowDown");
+        await expect(groupOption).toBeVisible();
 
         const region = page.getByRole("region", { name: "Import preview" });
         const table = region.getByRole("table");
