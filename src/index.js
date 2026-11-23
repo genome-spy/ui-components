@@ -4,6 +4,7 @@ export { default as FilePicker } from "./filePicker.js";
 export { default as UploadDropZone } from "./dropZone.js";
 export {
     default as BaseDialog,
+    Dialog,
     showDialog,
     showDialogAndMap,
     showDialogOk,

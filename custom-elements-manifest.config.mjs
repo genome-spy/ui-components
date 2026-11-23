@@ -47,6 +47,21 @@ export default {
                         declaration.events = declaration.events?.filter(
                             ({ name, description }) => name && description
                         );
+
+                        // The slotted dialog uses its own attributes and renders only the frame.
+                        if (declaration.tagName === "gs-dialog") {
+                            declaration.attributes =
+                                declaration.attributes?.filter(({ name }) =>
+                                    [
+                                        "dialog-title",
+                                        "dismiss-disabled",
+                                        "open",
+                                    ].includes(name)
+                                );
+                            declaration.cssParts = declaration.cssParts?.filter(
+                                ({ name }) => name === "dialog"
+                            );
+                        }
                     }
                 }
             },

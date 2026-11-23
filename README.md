@@ -70,11 +70,42 @@ exposes the `button` part, the drop zone exposes `drop-zone` and
 
 Dialogs support `--gs-font-family`, `--gs-font-size`, `--gs-basic-spacing`,
 `--gs-dialog-text`, `--gs-dialog-radius`, and `--gs-dialog-backdrop` in addition
-to the color tokens above. They expose `dialog`, `header`, `body`, and `footer`
-parts, plus `button` and `primary-button` for their actions. Pass the themed
-container as `mount` for dialogs opened by a helper. Modal dialogs use the
-browser's top layer, so they can inherit a local theme and still extend beyond
-the mount's bounds.
+to the color tokens above. The `dialog` part styles the native frame. Dialogs
+using the `BaseDialog` layout also expose `header`, `body`, and `footer` parts,
+plus `button` and `primary-button` for their actions. Pass the themed container
+as `mount` for dialogs opened by a helper. Modal dialogs use the browser's top
+layer, so they can inherit a local theme and still extend beyond the mount's
+bounds.
+
+For forms and controls owned by the caller, import
+`@genome-spy/ui-components/define/dialog` and put the content inside
+`<gs-dialog dialog-title="Settings">`. Call `showModal()` or `show()` on the
+mounted element. Call `close()` or submit a slotted `<form method="dialog">` to
+close it. The content stays mounted between openings. Set `dismiss-disabled` to
+guard platform dismissal during pending work. See **Components → Dialog →
+Slotted form** in Storybook.
+
+```html
+<button id="edit-settings" type="button">Edit settings</button>
+<gs-dialog id="settings" dialog-title="Settings">
+  <form method="dialog">
+    <label>Name <input name="name" required /></label>
+    <button type="submit">Done</button>
+  </form>
+</gs-dialog>
+<script type="module">
+  import "@genome-spy/ui-components/define/dialog";
+  document.querySelector("#edit-settings").addEventListener("click", () => {
+    document.querySelector("#settings").showModal();
+  });
+</script>
+```
+
+For the same layout as `BaseDialog`, add `formStyles` and `dialogLayoutStyles`
+from `@genome-spy/ui-components/styles` to the Lit component that renders the
+form. Give the direct slotted form `class="gs-dialog-layout"` and use a `header`
+for the title, a `section` for fields, and a `footer` containing the `.btn`
+actions. Add `.btn-primary` to the primary action.
 
 ```js
 import { showMessageDialog } from "@genome-spy/ui-components/messageDialog";
@@ -86,13 +117,14 @@ await showMessageDialog("The dataset is ready.", {
 ```
 
 Subclass `BaseDialog` from `/dialog`, register the subclass, and call
-`showDialog(tagName, configure, { mount })` to open it and await its result. For
-persistent dialogs, set `openOnConnect` to false and call `openDialog()` after
-the element's first render. Set `dialogDescribedBy` to the ID of a short
-description rendered in the dialog's shadow root so assistive technology can
-announce it. Override `canCancel()` to guard dismissal during pending work. Use
-`{ autofocus: true }` with `makeButton()` or `makeCloseButton()` to choose the
-initial action.
+`showDialog(tagName, configure, { mount })` to open an auto-opening subclass and
+await its result. Use `showDialogWithElement()` when you need the element to
+open it yourself. For persistent subclasses, set `openOnConnect` to false and
+use the protected `openDialog()` from your component. Set `dialogDescribedBy` to
+the ID of a short description rendered in the dialog's shadow root so assistive
+technology can announce it. Override `canCancel()` to guard dismissal during
+pending work. Use `{ autofocus: true }` with `makeButton()` or
+`makeCloseButton()` to choose the initial action.
 
 The `faStyles` export from `@genome-spy/ui-components/styles` provides baseline
 sizing and alignment for inline Font Awesome SVGs in a Lit shadow root.

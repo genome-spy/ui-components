@@ -3,6 +3,8 @@ import BaseDialog, { showDialog } from "@genome-spy/ui-components/dialog";
 import DialogWizardController from "@genome-spy/ui-components/dialogWizardController";
 import { FormController } from "@genome-spy/ui-components/formController";
 import { formField } from "@genome-spy/ui-components/formField";
+import { datasetSettingsTag } from "./slottedDialogForm.js";
+import slottedDialogFormSource from "./slottedDialogForm.js?raw";
 
 class SetupDialog extends BaseDialog {
     static properties = {
@@ -122,19 +124,41 @@ customElements.define("gs-story-confirm-save-dialog", ConfirmSaveDialog);
 
 export default {
     title: "Components/Dialog",
+    component: "gs-dialog",
     tags: ["autodocs"],
     parameters: {
         docs: {
             description: {
                 component:
-                    "Extend `BaseDialog` and register your custom element. " +
-                    "Render fields in `renderBody()` and build footer actions in `renderButtons()`. " +
-                    "Call `finish({ ok, data })` to resolve the caller's result. " +
-                    "Use `canCancel()` to guard dismissal and `autofocus` to choose an initial action. " +
-                    "Use `showDialog(tagName, configure, { mount })` to open it under a themed container.",
+                    "Use `<gs-dialog>` for forms and controls rendered by the caller. " +
+                    "Pass an accessible name in `dialog-title` and open it with `showModal()` or `show()`. " +
+                    "The slotted content stays mounted and inherits the caller's theme. " +
+                    "The `open` property and attribute track visibility. Listen for `gs-dialog-opened` or `gs-dialog-closed`. " +
+                    "Use `dismiss-disabled` to block requests such as Escape while work is pending. " +
+                    "For a self-contained workflow, extend `BaseDialog`, override `renderBody()` and `renderButtons()`, " +
+                    "and call `finish({ ok, data })` to return a result to `showDialog()`.",
             },
         },
     },
+};
+
+export const SlottedForm = {
+    parameters: {
+        docs: {
+            description: {
+                story:
+                    "Add `formStyles` and `dialogLayoutStyles` from `@genome-spy/ui-components/styles` to the Lit component that renders the slotted form. " +
+                    "Add `.gs-dialog-layout` to the form to use the same header, section, and footer layout as the PNG and SVG export dialogs. " +
+                    "Use `.gs-form-group` around each label and control. Place `.btn` actions in the footer and add `.btn-primary` to the primary action. " +
+                    'Submit a form with `method="dialog"` to close it. Switch the Storybook theme to see both the frame and controls inherit the palette.',
+            },
+            source: {
+                language: "javascript",
+                code: slottedDialogFormSource.trim(),
+            },
+        },
+    },
+    render: () => document.createElement(datasetSettingsTag),
 };
 
 /** @param {MouseEvent} event */

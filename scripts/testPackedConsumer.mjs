@@ -180,6 +180,152 @@ try {
         await expect(dialogResult).toHaveText("applied");
         await expect(dialogOpener).toBeFocused();
 
+        const settingsHost = page.locator("#settings");
+        const settings = page.getByRole("dialog", { name: "Dataset settings" });
+        const settingsOpener = page.getByRole("button", {
+            name: "Open settings",
+        });
+        const title = settingsHost.getByRole("textbox", {
+            name: "Display title",
+        });
+        const done = settingsHost.getByRole("button", { name: "Done" });
+        await expect(settings).toHaveCount(0);
+        await settingsHost.evaluate((element) => {
+            element.addEventListener("gs-dialog-opened", () => {
+                element.dataset.opened = String(element.open);
+            });
+        });
+        await settingsOpener.click();
+        await expect(settings).toBeVisible();
+        await expect(settings).toHaveCSS(
+            "background-color",
+            "rgb(237, 243, 248)"
+        );
+        await expect(settings).toHaveCSS("padding", "0px");
+        await expect(settingsHost.locator("section")).toHaveCSS(
+            "padding",
+            "12px"
+        );
+        await expect(settingsHost.locator("footer")).toHaveCSS(
+            "border-top-color",
+            "rgb(120, 154, 188)"
+        );
+        await expect(settingsHost.locator("footer")).toHaveCSS(
+            "justify-content",
+            "flex-end"
+        );
+        await expect(done).toHaveCSS("background-color", "rgb(35, 69, 103)");
+        await settingsHost.locator("form").evaluate((form) => {
+            form.classList.remove("gs-dialog-layout");
+        });
+        await expect(settings).toHaveCSS("padding", "12px");
+        await settingsHost.locator("form").evaluate((form) => {
+            form.classList.add("gs-dialog-layout");
+        });
+        await expect(settingsHost).toHaveAttribute("data-opened", "true");
+        await expect(settingsHost).toHaveAttribute("open", "");
+        await expect(title).toBeFocused();
+        await done.click();
+        await expect(settings).toBeVisible();
+
+        await title.fill("Sample series");
+        await settingsHost.evaluate((element) => {
+            element
+                .querySelector("form")
+                .addEventListener("submit", (event) => event.preventDefault(), {
+                    once: true,
+                });
+            element.dismissDisabled = true;
+        });
+        await expect(settings).toHaveAttribute("closedby", "none");
+        await page.keyboard.press("Escape");
+        await expect(settings).toBeVisible();
+        await done.click();
+        await expect(settings).toBeVisible();
+        await done.click();
+        await expect(settings).toHaveCount(0);
+        await expect(settingsHost).not.toHaveAttribute("open");
+        await expect(settingsOpener).toBeFocused();
+
+        await settingsHost.evaluate((element) => {
+            element.dismissDisabled = false;
+        });
+        await settingsOpener.click();
+        await expect(title).toHaveValue("Sample series");
+        await page.keyboard.press("Escape");
+        await expect(settings).toHaveCount(0);
+
+        await settingsOpener.click();
+        const remounted = await settingsHost.evaluate(async (element) => {
+            const parent = element.parentElement;
+            element.remove();
+            const closedWhileDetached =
+                !element.open && !element.hasAttribute("open");
+            parent.append(element);
+            element.showModal();
+
+            const dialog = element.shadowRoot.querySelector("dialog");
+            element.close();
+            const transitions = dialog.getAnimations();
+            element.remove();
+            parent.append(element);
+            element.showModal();
+            await Promise.allSettled(
+                transitions.map((animation) => animation.finished)
+            );
+            return {
+                closedWhileDetached,
+                open: element.open,
+                reflected: element.hasAttribute("open"),
+                modal: dialog.matches(":modal"),
+            };
+        });
+        expect(remounted).toEqual({
+            closedWhileDetached: true,
+            open: true,
+            reflected: true,
+            modal: true,
+        });
+        await page.keyboard.press("Escape");
+        await expect(settings).toHaveCount(0);
+
+        const automaticallyOpened = await settingsHost.evaluate(
+            async (settings) => {
+                const { ownerDocument } = settings;
+                const element = ownerDocument.createElement("gs-dialog");
+                element.openOnConnect = true;
+                let openedEvents = 0;
+                element.addEventListener(
+                    "gs-dialog-opened",
+                    () => openedEvents++
+                );
+                ownerDocument.body.append(element);
+                await element.updateComplete;
+                const state = {
+                    open: element.open,
+                    reflected: element.hasAttribute("open"),
+                    openedEvents,
+                };
+                element.remove();
+                return state;
+            }
+        );
+        expect(automaticallyOpened).toEqual({
+            open: true,
+            reflected: true,
+            openedEvents: 1,
+        });
+
+        await page
+            .getByRole("button", { name: "Show settings nonmodally" })
+            .click();
+        await expect(settings).toBeVisible();
+        expect(
+            await settings.evaluate((element) => element.matches(":modal"))
+        ).toBe(false);
+        await page.getByRole("button", { name: "Close settings" }).click();
+        await expect(settings).toHaveCount(0);
+
         const opener = page.getByRole("button", { name: "Open menu" });
         await opener.click();
         const menu = page.getByRole("menu", { name: "Dataset actions" });

@@ -3,6 +3,7 @@ import { html } from "lit";
 import {
     BaseDialog,
     createMenuController,
+    Dialog,
     showDialog,
     type CustomSelect,
     type DataGrid,
@@ -17,6 +18,9 @@ import "@genome-spy/ui-components/define/thresholdComparisonInput";
 import "@genome-spy/ui-components/define/dataGrid";
 import "@genome-spy/ui-components/define/dropZone";
 import "@genome-spy/ui-components/define/imageExportDialog";
+import "@genome-spy/ui-components/define/dialog";
+import { Dialog as DialogModuleExport } from "@genome-spy/ui-components/dialog";
+import { dialogLayoutStyles } from "@genome-spy/ui-components/styles";
 import {
     PngExportDialog,
     SvgExportDialog,
@@ -29,6 +33,13 @@ if (
     throw new Error(
         "The image export dialog entry points must share the same elements."
     );
+}
+
+if (
+    Dialog !== DialogModuleExport ||
+    customElements.get("gs-dialog") !== Dialog
+) {
+    throw new Error("The dialog entry points must share the same element.");
 }
 
 class FixtureDialog extends BaseDialog {
@@ -101,6 +112,18 @@ document.querySelector("#open-dialog")!.addEventListener("click", async () => {
         dialog.dialogTitle = "Dialog lifecycle";
     });
     output.textContent = result.ok ? "applied" : (result.reason ?? "");
+});
+
+const settings = document.querySelector<Dialog>("#settings")!;
+document.adoptedStyleSheets.push(dialogLayoutStyles.styleSheet!);
+document.querySelector("#open-slotted")!.addEventListener("click", () => {
+    settings.showModal();
+});
+document.querySelector("#show-slotted")!.addEventListener("click", () => {
+    settings.show();
+});
+document.querySelector("#close-slotted")!.addEventListener("click", () => {
+    settings.close();
 });
 
 const opener = document.querySelector<HTMLButtonElement>("#open-menu")!;

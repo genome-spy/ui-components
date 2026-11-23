@@ -20,6 +20,40 @@
         ></gs-data-grid>
         <button id="open-dialog" type="button">Open dialog</button>
         <output id="dialog-result"></output>
+        <button id="open-slotted" type="button">Open settings</button>
+        <button id="show-slotted" type="button">
+            Show settings nonmodally
+        </button>
+        <button id="close-slotted" type="button">Close settings</button>
+        <div
+            style="
+                overflow: hidden;
+                width: 24px;
+                height: 24px;
+                transform: translateZ(0);
+                --gs-dialog-background: #edf3f8;
+                --gs-basic-spacing: 12px;
+                --gs-dialog-stroke-color: #789abc;
+                --gs-theme-primary: #234567;
+            "
+        >
+            <gs-dialog id="settings" dialog-title="Dataset settings">
+                <form class="gs-form gs-dialog-layout" method="dialog">
+                    <header><h2>Dataset settings</h2></header>
+                    <section>
+                        <label>
+                            Display title
+                            <input name="title" required autofocus />
+                        </label>
+                    </section>
+                    <footer>
+                        <button class="btn btn-primary" type="submit">
+                            Done
+                        </button>
+                    </footer>
+                </form>
+            </gs-dialog>
+        </div>
         <button id="open-menu" type="button" aria-haspopup="menu">
             Open menu
         </button>

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, expect, test, vi } from "vitest";
-import BaseDialog, { showDialogWithElement } from "./dialog.js";
+import BaseDialog, { showDialog, showDialogWithElement } from "./dialog.js";
+import "./define/dialog.js";
 
 class TestDialog extends BaseDialog {
     complete() {
@@ -13,6 +14,20 @@ customElements.define("gs-test-dialog", TestDialog);
 
 afterEach(() => {
     document.body.replaceChildren();
+});
+
+test("the result helper rejects a dialog that opens on demand", async () => {
+    await expect(showDialog("gs-dialog")).rejects.toThrow(
+        "does not open on connect"
+    );
+    expect(document.querySelector("gs-dialog")).toBeNull();
+});
+
+test("the result helper rejects an unregistered dialog", async () => {
+    await expect(showDialog("gs-unregistered-dialog")).rejects.toThrow(
+        "as a BaseDialog subclass"
+    );
+    expect(document.querySelector("gs-unregistered-dialog")).toBeNull();
 });
 
 test("a dialog can reference an accessible description", async () => {

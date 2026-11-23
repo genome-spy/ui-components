@@ -1,5 +1,6 @@
 import { LitElement, html, css, nothing } from "lit";
 import { faStyles, renderIcon } from "./internal/icon.js";
+import { dialogLayoutStyles } from "./internal/dialogLayoutStyles.js";
 import { formStyles } from "./internal/formStyles.js";
 
 const DEFAULT_ACTION_INPUT_TYPES = new Set([
@@ -29,6 +30,7 @@ const DEFAULT_ACTION_INPUT_TYPES = new Set([
  * renderBody() and renderButtons(), and can also override the header and footer.
  *
  * @fires {CustomEvent<DialogFinishDetail>} gs-dialog-finished - Reports the outcome in event.detail.
+ * @fires {Event} gs-dialog-opened - Fires on the host after the native dialog opens.
  * @fires {CustomEvent} gs-dialog-closed - Fires after the native dialog closes.
  * @csspart dialog - Native dialog frame.
  * @csspart header - Title area.
@@ -56,11 +58,18 @@ export default class BaseDialog extends LitElement {
     /** @type {HTMLDialogElement} */
     #dialog;
 
+    /** @type {boolean | undefined} */
+    #openOnFirstRender;
+
+    /** @type {Animation | undefined} */
+    #closeTransition;
+
     /** Open when first rendered. Set to false for a dialog opened on demand. */
     openOnConnect = true;
 
     static styles = [
         formStyles,
+        dialogLayoutStyles,
         faStyles,
         css`
             dialog {
@@ -130,80 +139,6 @@ export default class BaseDialog extends LitElement {
                 dialog.closing::backdrop {
                     transition-duration: 0.1s;
                 }
-            }
-
-            header,
-            section,
-            footer {
-                padding: var(--gs-basic-spacing, 10px);
-            }
-
-            header {
-                font-weight: bold;
-                padding-bottom: 0;
-            }
-
-            section {
-                > :first-child {
-                    margin-top: 0;
-                }
-
-                > :last-child {
-                    margin-bottom: 0;
-                }
-            }
-
-            footer {
-                border-top: 1px solid
-                    var(
-                        --gs-dialog-stroke-color,
-                        var(--gs-divider-color, #d0d0d0)
-                    );
-                padding: var(--gs-basic-spacing, 10px);
-
-                > div {
-                    display: flex;
-                    justify-content: flex-end;
-                    gap: var(--gs-basic-spacing, 10px);
-                }
-            }
-
-            footer .btn.btn-primary {
-                --gs-dialog-primary-bg: var(--gs-theme-primary, #51678d);
-                background: var(
-                    --gs-primary-button-background,
-                    var(--gs-dialog-primary-bg)
-                );
-                border-color: oklch(
-                    from var(--gs-dialog-primary-bg) calc(l - 0.08) c h
-                );
-                color: var(--gs-theme-on-primary, #ffffff);
-            }
-
-            footer .btn.btn-primary:hover:not(:disabled) {
-                background: var(
-                    --gs-primary-button-hover-background,
-                    var(
-                        --gs-primary-button-background,
-                        oklch(
-                            from var(--gs-dialog-primary-bg) calc(l - 0.05) c h
-                        )
-                    )
-                );
-            }
-
-            footer .btn.btn-primary:disabled {
-                background: var(
-                    --gs-disabled-background,
-                    oklch(from var(--gs-dialog-primary-bg) calc(l + 0.08) c h)
-                );
-                border-color: oklch(
-                    from var(--gs-dialog-primary-bg) calc(l - 0.02) c h
-                );
-                color: var(
-                    --gs-disabled-text,
-                    oklch(from var(--gs-theme-on-primary, #ffffff) l c h / 0.6)
-                );
             }
         `,
     ];
@@ -291,28 +226,61 @@ export default class BaseDialog extends LitElement {
 
     firstUpdated() {
         this.#dialog = this.renderRoot.querySelector("dialog");
-        if (this.openOnConnect) {
+        const shouldOpen = this.#openOnFirstRender ?? this.openOnConnect;
+        this.#openOnFirstRender = undefined;
+        if (shouldOpen) {
             this.openDialog();
         }
     }
 
-    /** Open the native dialog after the first render. @protected */
-    openDialog() {
-        if (this.#dialog.open) {
+    disconnectedCallback() {
+        super.disconnectedCallback();
+        this.#openOnFirstRender = undefined;
+        // Removing an open native dialog drops it from the modal top layer
+        // while leaving its open flag set. Reset it for the next mounting.
+        if (this.dialogOpen) {
+            this.#closeNativeDialog();
+        }
+    }
+
+    /** Whether the native dialog is open. @protected */
+    get dialogOpen() {
+        return this.#dialog?.open ?? false;
+    }
+
+    /**
+     * Open the mounted dialog, after its first render if needed.
+     * @param {boolean} [modal]
+     * @protected
+     */
+    openDialog(modal = this.modal) {
+        if (!this.isConnected || this.dialogOpen || this.#openOnFirstRender) {
             return;
         }
 
+        this.modal = modal;
+        if (!this.#dialog) {
+            this.#openOnFirstRender = true;
+            return;
+        }
+
+        this.#closeTransition = undefined;
         this.#dialog.classList.remove("closing");
-        this.renderRoot
-            .querySelector(".non-modal-backdrop")
-            ?.classList.remove("closing");
-        if (this.modal) {
+        if (modal) {
             this.#dialog.showModal();
         } else {
             this.#dialog.show();
         }
 
-        this.#focusAutofocusTarget();
+        this.#reflectOpen();
+        if (this.dialogOpen) {
+            this.#focusAutofocusTarget();
+            this.dispatchEvent(new Event("gs-dialog-opened"));
+        }
+    }
+
+    #reflectOpen() {
+        this.toggleAttribute("open", this.dialogOpen);
     }
 
     #focusAutofocusTarget() {
@@ -325,19 +293,13 @@ export default class BaseDialog extends LitElement {
 
         // Queue once immediately and once on the next frame so custom elements
         // have time to render internal focus targets.
-        queueMicrotask(() => {
-            if (!this.isConnected) {
-                return;
+        const focus = () => {
+            if (this.isConnected && this.dialogOpen) {
+                autofocusTarget.focus();
             }
-            autofocusTarget.focus();
-        });
-
-        requestAnimationFrame(() => {
-            if (!this.isConnected) {
-                return;
-            }
-            autofocusTarget.focus();
-        });
+        };
+        queueMicrotask(focus);
+        requestAnimationFrame(focus);
     }
 
     /**
@@ -388,6 +350,11 @@ export default class BaseDialog extends LitElement {
     }
 
     #onDialogClose() {
+        // A close event may arrive after the element has already reopened.
+        if (this.dialogOpen) {
+            return;
+        }
+        this.#reflectOpen();
         this.dispatchEvent(
             new CustomEvent("gs-dialog-closed", {
                 bubbles: true,
@@ -396,13 +363,19 @@ export default class BaseDialog extends LitElement {
         );
     }
 
+    #closeNativeDialog() {
+        this.#closeTransition = undefined;
+        this.#dialog.close();
+        this.#reflectOpen();
+    }
+
     /**
      * @protected
      */
     triggerClose() {
         const dialog = this.#dialog;
         if (!dialog) {
-            void this.updateComplete.then(() => this.triggerClose());
+            this.#openOnFirstRender = false;
             return;
         }
         if (!dialog.open || dialog.classList.contains("closing")) {
@@ -410,9 +383,6 @@ export default class BaseDialog extends LitElement {
         }
 
         dialog.classList.add("closing");
-        this.renderRoot
-            .querySelector(".non-modal-backdrop")
-            ?.classList.add("closing");
 
         // Keep the dialog visible during its own fade, even in browsers
         // without CSS top-layer exit transitions.
@@ -424,10 +394,15 @@ export default class BaseDialog extends LitElement {
                     animation.transitionProperty === "opacity"
             );
         if (fade) {
-            const close = () => dialog.close();
+            this.#closeTransition = fade;
+            const close = () => {
+                if (this.#closeTransition === fade) {
+                    this.#closeNativeDialog();
+                }
+            };
             void fade.finished.then(close, close);
         } else {
-            dialog.close();
+            this.#closeNativeDialog();
         }
     }
 
@@ -578,12 +553,8 @@ export default class BaseDialog extends LitElement {
     /** @returns {import("lit").HTMLTemplateResult} */
     render() {
         return html`
-            ${
-                !this.modal
-                    ? html`<div class="non-modal-backdrop"></div>`
-                    : nothing
-            }
             <dialog
+                class="gs-dialog-layout"
                 part="dialog"
                 aria-labelledby=${this.dialogTitle ? "dialog-title" : nothing}
                 aria-label="GenomeSpy"
@@ -599,12 +570,119 @@ export default class BaseDialog extends LitElement {
 }
 
 /**
+ * A persistent dialog for content owned by the caller. Starts closed and
+ * retains slotted forms and controls between openings.
+ *
+ * @tag gs-dialog
+ * @attr {string} dialog-title - Accessible name for the dialog.
+ * @attr {boolean} open - Read-only reflection of the native open state.
+ * @slot - Dialog content, including any headings, forms, and actions.
+ * @csspart dialog - Native dialog frame.
+ * @cssprop --gs-basic-spacing - Padding inside the dialog frame.
+ */
+export class Dialog extends BaseDialog {
+    static properties = {
+        ...BaseDialog.properties,
+        dialogTitle: { attribute: "dialog-title" },
+        dismissDisabled: { type: Boolean, attribute: "dismiss-disabled" },
+    };
+
+    static styles = [
+        ...BaseDialog.styles,
+        css`
+            :host {
+                display: contents;
+            }
+
+            dialog {
+                box-sizing: border-box;
+                min-width: 0;
+                padding: var(--gs-basic-spacing, 10px);
+            }
+        `,
+    ];
+
+    openOnConnect = false;
+
+    constructor() {
+        super();
+        /** Block platform dismissal requests, such as Escape, during pending work. */
+        this.dismissDisabled = false;
+    }
+
+    /** Whether the dialog is open. The host reflects this state as `[open]`. */
+    get open() {
+        return this.dialogOpen;
+    }
+
+    /** Open in the browser's modal top layer after mounting this element. */
+    showModal() {
+        this.openDialog(true);
+    }
+
+    /** Open nonmodally after mounting this element. */
+    show() {
+        this.openDialog(false);
+    }
+
+    /** Close through the native dialog lifecycle or cancel a queued opening. */
+    close() {
+        this.triggerClose();
+    }
+
+    /** @protected */
+    canCancel() {
+        return !this.dismissDisabled;
+    }
+
+    /** @protected */
+    renderDialogContent() {
+        return html`<span id="dialog-title" hidden>${this.dialogTitle}</span
+            ><slot @submit=${this.#onSlotSubmit}></slot>`;
+    }
+
+    /** @param {SubmitEvent} event */
+    #onSlotSubmit(event) {
+        const form = event.target;
+        if (
+            !this.open ||
+            event.defaultPrevented ||
+            !(form instanceof HTMLFormElement)
+        ) {
+            return;
+        }
+
+        const method =
+            event.submitter?.getAttribute("formmethod") ??
+            form.getAttribute("method");
+        if (method?.toLowerCase() !== "dialog") {
+            return;
+        }
+
+        // A slotted form cannot find the shadow dialog as a DOM ancestor.
+        // Leave a form inside an intervening native dialog to the browser.
+        const slotOrDialog = event
+            .composedPath()
+            .find(
+                (node) =>
+                    node === event.currentTarget ||
+                    node instanceof HTMLDialogElement
+            );
+        if (slotOrDialog === event.currentTarget) {
+            event.preventDefault();
+            this.close();
+        }
+    }
+}
+
+/**
  * @typedef {object} DialogOptions
  * @property {HTMLElement | ShadowRoot} [mount] Element or shadow root supplying the dialog's theme. Defaults to document.body.
  */
 
 /**
- * Open a dialog and resolve to its result or a cancellation on close.
+ * Open an auto-opening BaseDialog subclass and resolve to its result or a
+ * cancellation on close. Use showDialogWithElement() for manual opening.
  *
  * @template {BaseDialog} T
  * @param {string} tagName - Custom element name, e.g. "gs-upload-dialog".
@@ -612,12 +690,12 @@ export default class BaseDialog extends LitElement {
  * @param {DialogOptions} [options]
  * @returns {Promise<DialogFinishDetail>}
  */
-export function showDialog(tagName, configure, options) {
-    return showDialogWithElement(tagName, configure, options).promise;
+export async function showDialog(tagName, configure, options) {
+    return mountResultDialog(tagName, configure, options, true).promise;
 }
 
 /**
- * Open any dialog element that extends BaseDialog and map the result.
+ * Open an auto-opening BaseDialog subclass and map the result.
  *
  * @template {BaseDialog} T
  * @template R
@@ -632,7 +710,7 @@ export function showDialogAndMap(tagName, configure, map, options) {
 }
 
 /**
- * Open any dialog element that extends BaseDialog and resolve to a boolean.
+ * Open an auto-opening BaseDialog subclass and resolve to a boolean.
  *
  * @template {BaseDialog} T
  * @param {string} tagName - Custom element name, e.g. "gs-upload-dialog".
@@ -650,7 +728,8 @@ export function showDialogOk(tagName, configure, options) {
 }
 
 /**
- * Open any dialog element that extends BaseDialog and return the element.
+ * Mount a BaseDialog subclass and return its element and result promise.
+ * For dialogs opened on demand, open the returned element after mounting.
  * If the dialog closes without reporting a result, the promise resolves
  * to a cancellation.
  *
@@ -660,13 +739,37 @@ export function showDialogOk(tagName, configure, options) {
  * @param {DialogOptions} [options]
  * @returns {{element: T, promise: Promise<DialogFinishDetail>}}
  */
-export function showDialogWithElement(
+export function showDialogWithElement(tagName, configure, options) {
+    return mountResultDialog(tagName, configure, options);
+}
+
+/**
+ * @template {BaseDialog} T
+ * @param {string} tagName
+ * @param {(el: T) => void} [configure]
+ * @param {DialogOptions} [options]
+ * @param {boolean} [requireAutoOpen]
+ * @returns {{element: T, promise: Promise<DialogFinishDetail>}}
+ */
+function mountResultDialog(
     tagName,
     configure,
-    { mount = document.body } = {}
+    { mount = document.body } = {},
+    requireAutoOpen = false
 ) {
-    const el = /** @type {T} */ (mount.ownerDocument.createElement(tagName));
+    const element = mount.ownerDocument.createElement(tagName);
+    if (!(element instanceof BaseDialog)) {
+        throw new TypeError(
+            `Register "${tagName}" as a BaseDialog subclass before mounting it.`
+        );
+    }
+    const el = /** @type {T} */ (element);
     configure?.(el);
+    if (requireAutoOpen && !el.openOnConnect) {
+        throw new TypeError(
+            `"${tagName}" does not open on connect. Use showDialogWithElement() to open it manually.`
+        );
+    }
 
     const promise = new Promise((resolve) => {
         /** @param {CustomEvent<DialogFinishDetail>} event */
