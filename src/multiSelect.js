@@ -4,6 +4,14 @@ import { formStyles } from "./internal/formStyles.js";
 
 let nextElementId = 0;
 const formatCount = new Intl.NumberFormat().format;
+const supportsAnchorPositioning =
+    globalThis.CSS?.supports(
+        "(anchor-name: --gs-multi-select-control) and " +
+            "(position-anchor: --gs-multi-select-control) and " +
+            "(inset-block-start: calc(anchor(end) + 4px)) and " +
+            "(min-inline-size: anchor-size(inline)) and " +
+            "(position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline)"
+    ) ?? false;
 
 /**
  * @typedef {{ id: string, label?: string, detail?: string }} MultiSelectOption
@@ -115,6 +123,7 @@ export default class MultiSelect extends LitElement {
             }
 
             .control {
+                anchor-name: --gs-multi-select-control;
                 display: flex;
                 flex-wrap: wrap;
                 align-items: center;
@@ -204,6 +213,18 @@ export default class MultiSelect extends LitElement {
 
             .dropdown:not([data-positioned]) {
                 visibility: hidden;
+            }
+
+            .dropdown.anchored {
+                position-anchor: --gs-multi-select-control;
+                inset-block-start: calc(anchor(end) + 4px);
+                inset-inline-start: anchor(start);
+                box-sizing: border-box;
+                min-inline-size: anchor-size(inline);
+                position-try-fallbacks:
+                    flip-block,
+                    flip-inline,
+                    flip-block flip-inline;
             }
 
             .listbox {
@@ -355,6 +376,7 @@ export default class MultiSelect extends LitElement {
         }
 
         if (
+            !supportsAnchorPositioning &&
             this._open &&
             (changed.has("_suggestions") || changed.has("_loading"))
         ) {
@@ -579,7 +601,13 @@ export default class MultiSelect extends LitElement {
             if (supportsPopover && !dropdown.matches(":popover-open")) {
                 dropdown.showPopover();
             }
-            this.#startPositionTracking();
+            if (supportsAnchorPositioning) {
+                dropdown.setAttribute("data-positioned", "");
+            } else {
+                // TODO: Remove the Floating UI fallback once CSS anchor
+                // positioning is available in all supported browsers.
+                this.#startPositionTracking();
+            }
         } else {
             this.#stopPositionTracking();
             if (supportsPopover && dropdown.matches(":popover-open")) {
@@ -1052,7 +1080,7 @@ export default class MultiSelect extends LitElement {
             </div>
 
             <div
-                class="dropdown"
+                class=${supportsAnchorPositioning ? "dropdown anchored" : "dropdown"}
                 part="panel"
                 popover="auto"
                 ?hidden=${!this._open}

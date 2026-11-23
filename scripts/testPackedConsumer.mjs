@@ -145,15 +145,18 @@ try {
             const control = root
                 .querySelector(".control")
                 .getBoundingClientRect();
-            const popup = root
-                .querySelector(".dropdown")
-                .getBoundingClientRect();
-            return (
-                Math.abs(popup.left - control.left) < 1 &&
-                Math.abs(popup.top - control.bottom - 4) < 1
-            );
+            const dropdown = root.querySelector(".dropdown");
+            const popup = dropdown.getBoundingClientRect();
+            return {
+                aligned:
+                    Math.abs(popup.left - control.left) < 1 &&
+                    Math.abs(popup.top - control.bottom - 4) < 1,
+                cssAnchored: dropdown.classList.contains("anchored"),
+                inlinePosition: !!dropdown.style.top,
+            };
         });
-        expect(aligned).toBe(true);
+        expect(aligned.aligned).toBe(true);
+        expect(aligned.inlinePosition).toBe(!aligned.cssAnchored);
 
         await search.fill("unavailable");
         await expect(
