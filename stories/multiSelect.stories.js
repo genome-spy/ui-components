@@ -18,7 +18,32 @@ const COLUMNS = [
     "ATM",
     "ERBB2",
     "GATA3",
+    "Sample",
+    "Sample name",
 ];
+
+const MOTIFS = [
+    { id: "MA0071.1", label: "RORA" },
+    { id: "MA0107.1", label: "RELA" },
+    { id: "MA0036.3", label: "GATA2" },
+    { id: "MA0099.3", label: "AP-1 / FOS::JUN" },
+    { id: "MA0098.3", label: "ETS / ETS1" },
+];
+
+const DEFAULT_MOTIFS = MOTIFS.slice(0, 2);
+
+/** @param {string} query */
+async function searchMotifs(query) {
+    const term = query.trim().toLowerCase();
+    const matches = MOTIFS.filter(({ id, label }) =>
+        `${label} ${id}`.toLowerCase().includes(term)
+    );
+    return {
+        options: matches.map((motif) => ({ ...motif, detail: motif.id })),
+        totalMatches: matches.length,
+        totalItems: MOTIFS.length,
+    };
+}
 
 export default {
     title: "Components/MultiSelect",
@@ -98,6 +123,7 @@ if (!customElements.get("gs-multi-select-demo")) {
                         .debounceMs=${this.debounceMs}
                         .maxSuggestions=${this.maxSuggestions}
                         .allowUnknown=${this.allowUnknown}
+                        .commitDelimiters=${this.allowUnknown ? [",", " "] : []}
                         @change=${(/** @type {Event} */ event) => {
                             const change =
                                 /** @type {import("@genome-spy/ui-components/multiSelect").MultiSelectChangeEvent} */ (
@@ -130,5 +156,50 @@ export const Basic = {
             debounce-ms=${args.debounceMs}
             max-suggestions=${args.maxSuggestions}
         ></gs-multi-select-demo>
+    `,
+};
+
+export const ColumnQueries = {
+    ...Basic,
+    args: {
+        allowUnknown: true,
+        placeholder: "Search or paste column names",
+    },
+    parameters: {
+        docs: {
+            description: {
+                story:
+                    "App-style entry allows typed values and one value per line when pasting. " +
+                    "Comma and space commit an exact match when the delimiter cannot extend another match.",
+            },
+        },
+    },
+};
+
+export const MotifSelection = {
+    parameters: {
+        docs: {
+            description: {
+                story:
+                    "Search for the TF name or JASPAR ID. The result shows the ID in `detail` and the chip shows the label. " +
+                    "`selectedLabels` names the preset IDs before the first search. " +
+                    "The footer shows how many matches are visible and how many motifs are in the catalogue. " +
+                    "The query stays in place after a choice, and `change` reports the IDs.",
+            },
+        },
+    },
+    render: () => html`
+        <gs-multi-select
+            aria-label="Select motifs"
+            placeholder="TF name or JASPAR ID"
+            keep-query-on-select
+            max-suggestions="2"
+            .selectedValues=${DEFAULT_MOTIFS.map(({ id }) => id)}
+            .selectedLabels=${Object.fromEntries(
+                DEFAULT_MOTIFS.map(({ id, label }) => [id, label])
+            )}
+            .search=${searchMotifs}
+            style="max-inline-size: 38rem"
+        ></gs-multi-select>
     `,
 };

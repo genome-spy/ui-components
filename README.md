@@ -297,7 +297,24 @@ Each element has a `define/` entry, such as
 property to name a `MultiSelect`, `CustomSelect`, `ThresholdComparisonInput`, or
 `DataGrid`. For example, give a column search the label “Select columns”.
 `MultiSelect` reports a failed search and can retry when the query changes or
-when you call `refreshSuggestions()`.
+when you call `refreshSuggestions()`. Return suggestions for the empty query to
+show starting choices on focus. If the empty query has no matches, the popup
+stays closed until the user types.
+
+Return strings from `MultiSelect.search` for simple choices. For a catalogue,
+return `{ id, label, detail }` records to show a readable label and optional
+secondary text in each suggestion. Chips use the label, and `selectedValues` and
+`change` carry IDs. Supply preset labels through `selectedLabels`, an object
+keyed by ID. Set `keep-query-on-select` to keep the remaining matches visible
+after a choice. Set `allow-unknown` for free-text entry and multiline paste. See
+**Components → MultiSelect** in Storybook for both patterns.
+
+To show result counts, return an object such as
+`{ options, totalMatches: 87, totalItems: 1017 }` from `search`. Supply the
+number of matches before limiting the results in `totalMatches` and the size of
+the catalogue before searching in `totalItems`. Either count can be omitted. The
+component counts visible suggestions after hiding selected values and applying
+`maxSuggestions`.
 
 Give the data preview a bounded height for row virtualization. Its `rowHeight`
 property sets the row height in pixels. The preview is a keyboard-scrollable

@@ -3,11 +3,26 @@ import { autoUpdate, computePosition, flip, offset } from "@floating-ui/dom";
 import { formStyles } from "./internal/formStyles.js";
 
 let nextElementId = 0;
+const formatCount = new Intl.NumberFormat().format;
 
 /**
- * @typedef {{ id: string, label?: string }} MultiSelectOption
+ * @typedef {{ id: string, label?: string, detail?: string }} MultiSelectOption
  * @typedef {string | MultiSelectOption} MultiSelectSearchResult
  */
+
+/**
+ * @typedef {object} MultiSelectSearchPage
+ * @property {MultiSelectSearchResult[]} options - Suggestions returned for the query.
+ * @property {number} [totalMatches] - Number of matches before truncating the results. Includes selected options if the provider matched them.
+ * @property {number} [totalItems] - Size of the catalogue before applying the query.
+ *
+ * @typedef {MultiSelectSearchResult[] | MultiSelectSearchPage} MultiSelectSearchResponse
+ */
+
+/** @param {MultiSelectSearchResponse} response */
+function searchPage(response) {
+    return Array.isArray(response) ? { options: response } : response;
+}
 
 /**
  * @param {MultiSelectSearchResult} result
@@ -21,6 +36,7 @@ function normalizeResult(result) {
     return {
         id: result.id,
         label: result.label ?? result.id,
+        detail: result.detail,
     };
 }
 
@@ -72,12 +88,14 @@ function parseMultilineValues(text) {
 export default class MultiSelect extends LitElement {
     static properties = {
         selectedValues: { attribute: false },
+        selectedLabels: { attribute: false },
         search: { attribute: false },
         commitDelimiters: { attribute: false },
         label: { type: String, attribute: "aria-label" },
         placeholder: { type: String },
         disabled: { type: Boolean },
         allowUnknown: { type: Boolean, attribute: "allow-unknown" },
+        keepQueryOnSelect: { type: Boolean, attribute: "keep-query-on-select" },
         debounceMs: { type: Number, attribute: "debounce-ms" },
         maxSuggestions: { type: Number, attribute: "max-suggestions" },
         _query: { state: true },
@@ -177,8 +195,6 @@ export default class MultiSelect extends LitElement {
                 position: fixed;
                 margin: 0;
                 inset: auto;
-                max-height: 16rem;
-                overflow: auto;
                 border: var(--form-control-border);
                 border-radius: var(--form-control-border-radius);
                 background: var(--gs-control-background, #fff);
@@ -186,10 +202,28 @@ export default class MultiSelect extends LitElement {
                 padding: 0.2em 0;
             }
 
+            .dropdown:not([data-positioned]) {
+                visibility: hidden;
+            }
+
+            .listbox {
+                max-height: 16rem;
+                overflow: auto;
+            }
+
             .option {
+                display: flex;
+                align-items: baseline;
+                justify-content: space-between;
+                gap: 0.75em;
+                overflow-wrap: anywhere;
                 padding: 0.35em 0.75em;
                 cursor: pointer;
                 background: transparent;
+            }
+
+            .option-detail {
+                color: var(--gs-muted-text, #606060);
             }
 
             .option.active {
@@ -202,6 +236,10 @@ export default class MultiSelect extends LitElement {
                 padding: 0.35em 0.75em;
                 color: var(--gs-muted-text, #6c757d);
                 font-size: 0.92em;
+            }
+
+            .summary {
+                border-top: var(--form-control-border);
             }
 
             .control.disabled {
@@ -226,14 +264,27 @@ export default class MultiSelect extends LitElement {
     /** @type {number} */
     #searchVersion;
 
+    /** @type {MultiSelectOption[]} */
+    #matches = [];
+
+    /** @type {Pick<MultiSelectSearchPage, "totalMatches" | "totalItems">} */
+    #searchCounts = {};
+
+    /** @type {Map<string, string>} */
+    #chosenLabels = new Map();
+
     /** @type {(() => void) | null} */
     #cleanupAutoUpdate;
+
+    #positionVersion = 0;
 
     constructor() {
         super();
         /** @type {string[]} Selected IDs. Assign a new array to update the selection. */
         this.selectedValues = [];
-        /** @type {((query: string) => Promise<MultiSelectSearchResult[]>) | null} Resolve matching IDs or {id, label} suggestions for a query. */
+        /** @type {Readonly<Record<string, string>>} Labels keyed by ID, including values supplied before searching. */
+        this.selectedLabels = {};
+        /** @type {((query: string) => Promise<MultiSelectSearchResponse>) | null} Resolve suggestions and optional counts for a query. */
         this.search = null;
         /** @type {string[]} Extra key values that commit the current query, such as a comma. */
         this.commitDelimiters = [];
@@ -243,8 +294,10 @@ export default class MultiSelect extends LitElement {
         this.placeholder = "Type to search";
         /** Disable input and removal of selected values. */
         this.disabled = false;
-        /** Allow values outside the suggestion results. */
+        /** Allow free-text values and pasting multiple values on separate lines. */
         this.allowUnknown = false;
+        /** Retain the query and remaining matches after choosing a suggestion. */
+        this.keepQueryOnSelect = false;
         /** Delay before sending a search query, in milliseconds. */
         this.debounceMs = 180;
         /** Maximum number of suggestions shown. */
@@ -266,7 +319,8 @@ export default class MultiSelect extends LitElement {
 
     disconnectedCallback() {
         super.disconnectedCallback();
-        this.#clearDebounceTimer();
+        this._inputHasFocus = false;
+        this.#closeSuggestions();
         this.#stopPositionTracking();
     }
 
@@ -278,7 +332,13 @@ export default class MultiSelect extends LitElement {
             this.selectedValues = uniqueValues(
                 Array.from(this.selectedValues, (value) => String(value))
             );
+        }
+        if (changed.has("selectedValues") || changed.has("maxSuggestions")) {
             this.#updateSuggestionVisibility();
+        }
+        if (changed.has("disabled") && this.disabled) {
+            this._inputHasFocus = false;
+            this.#closeSuggestions();
         }
     }
 
@@ -323,24 +383,27 @@ export default class MultiSelect extends LitElement {
      * Useful when backing suggestion data changes asynchronously.
      */
     refreshSuggestions() {
-        if (!this.search) {
+        if (!this.search || this.disabled) {
             return;
         }
 
-        if (this._inputHasFocus) {
-            this._open = true;
-        }
         this.#queueSearch();
     }
 
     #queueSearch() {
-        this.#clearDebounceTimer();
-        const query = this._query;
-        const version = ++this.#searchVersion;
+        this.#cancelSearch();
+        this.#matches = [];
+        this.#searchCounts = {};
         this._suggestions = [];
         this._activeIndex = -1;
-        this._loading = !!this.search;
         this._searchFailed = false;
+        if (!this.search || this.disabled || !this.isConnected) {
+            return;
+        }
+
+        const query = this._query;
+        const version = this.#searchVersion;
+        this._loading = true;
 
         this.#debounceTimer = window.setTimeout(() => {
             this.#debounceTimer = null;
@@ -348,11 +411,26 @@ export default class MultiSelect extends LitElement {
         }, this.debounceMs);
     }
 
-    #clearDebounceTimer() {
+    #cancelSearch() {
+        this.#searchVersion++;
+        this._loading = false;
         if (this.#debounceTimer !== null) {
             window.clearTimeout(this.#debounceTimer);
             this.#debounceTimer = null;
         }
+    }
+
+    #openSuggestions() {
+        if (!this._inputHasFocus || this.disabled || !this.search) {
+            return;
+        }
+        this.#queueSearch();
+    }
+
+    #closeSuggestions() {
+        this._open = false;
+        this._activeIndex = -1;
+        this.#cancelSearch();
     }
 
     /**
@@ -366,35 +444,29 @@ export default class MultiSelect extends LitElement {
             return;
         }
 
-        this._open = this._inputHasFocus;
-
         try {
             const results = await this.search(query);
-            if (version !== this.#searchVersion) {
+            if (
+                version !== this.#searchVersion ||
+                this.disabled ||
+                !this.isConnected
+            ) {
                 return;
             }
 
-            const selected = new Set(this.selectedValues);
-            /** @type {MultiSelectOption[]} */
-            const suggestions = [];
-
-            for (const result of results) {
-                const option = normalizeResult(result);
-                if (selected.has(option.id)) {
-                    continue;
-                }
-                suggestions.push(option);
-                if (suggestions.length >= this.maxSuggestions) {
-                    break;
-                }
-            }
-
-            this._suggestions = suggestions;
-            this._activeIndex = suggestions.length > 0 ? 0 : -1;
-            this._open = this._inputHasFocus;
+            const { options, totalMatches, totalItems } = searchPage(results);
+            this.#matches = options.map(normalizeResult);
+            this.#searchCounts = { totalMatches, totalItems };
+            this.#updateSuggestionVisibility();
+            this._open =
+                this._inputHasFocus &&
+                (this._suggestions.length > 0 || query.trim().length > 0);
+            this._activeIndex =
+                this._open && this._suggestions.length > 0 ? 0 : -1;
         } catch {
             if (version === this.#searchVersion) {
                 this._searchFailed = true;
+                this._open = this._inputHasFocus;
             }
         } finally {
             if (version === this.#searchVersion) {
@@ -417,7 +489,7 @@ export default class MultiSelect extends LitElement {
 
     #dropdownEl() {
         return /** @type {HTMLElement | null} */ (
-            this.renderRoot.querySelector("#" + this.#listboxId)
+            this.renderRoot.querySelector(".dropdown")
         );
     }
 
@@ -429,7 +501,10 @@ export default class MultiSelect extends LitElement {
     }
 
     #scrollActiveIntoView() {
-        if (this._activeIndex < 0 || !this._open) {
+        if (
+            this._activeIndex < 0 ||
+            !this.#dropdownEl()?.hasAttribute("data-positioned")
+        ) {
             return;
         }
         /** @type {HTMLElement | null} */
@@ -448,17 +523,22 @@ export default class MultiSelect extends LitElement {
 
         const width = control.getBoundingClientRect().width;
         dropdown.style.minWidth = String(width) + "px";
+        const version = ++this.#positionVersion;
 
         computePosition(control, dropdown, {
             placement: "bottom-start",
             strategy: "fixed",
             middleware: [offset(4), flip()],
         }).then(({ x, y }) => {
-            if (!this._open) {
+            if (!this._open || version !== this.#positionVersion) {
                 return;
             }
             dropdown.style.left = String(x) + "px";
             dropdown.style.top = String(y) + "px";
+            if (!dropdown.hasAttribute("data-positioned")) {
+                dropdown.setAttribute("data-positioned", "");
+                this.#scrollActiveIntoView();
+            }
         });
     }
 
@@ -470,13 +550,14 @@ export default class MultiSelect extends LitElement {
         }
 
         this.#stopPositionTracking();
-        this.#updatePopoverPosition();
         this.#cleanupAutoUpdate = autoUpdate(control, dropdown, () =>
             this.#updatePopoverPosition()
         );
     }
 
     #stopPositionTracking() {
+        this.#positionVersion++;
+        this.#dropdownEl()?.removeAttribute("data-positioned");
         if (!this.#cleanupAutoUpdate) {
             return;
         }
@@ -509,9 +590,14 @@ export default class MultiSelect extends LitElement {
 
     #updateSuggestionVisibility() {
         const selected = new Set(this.selectedValues);
-        this._suggestions = this._suggestions.filter(
-            (suggestion) => !selected.has(suggestion.id)
-        );
+        for (const id of this.#chosenLabels.keys()) {
+            if (!selected.has(id)) {
+                this.#chosenLabels.delete(id);
+            }
+        }
+        this._suggestions = this.#matches
+            .filter((suggestion) => !selected.has(suggestion.id))
+            .slice(0, Math.max(0, this.maxSuggestions));
         if (this._suggestions.length === 0) {
             this._activeIndex = -1;
         } else if (this._activeIndex >= this._suggestions.length) {
@@ -526,7 +612,7 @@ export default class MultiSelect extends LitElement {
     }
 
     /**
-     * @param {string[]} values
+     * @param {MultiSelectSearchResult[]} values
      * @returns {boolean}
      */
     #addValues(values) {
@@ -535,12 +621,16 @@ export default class MultiSelect extends LitElement {
         const additions = [];
 
         for (const value of values) {
-            const normalized = String(value).trim();
+            const { id, label } = normalizeResult(value);
+            const normalized = id.trim();
             if (normalized.length === 0 || seen.has(normalized)) {
                 continue;
             }
             seen.add(normalized);
             additions.push(normalized);
+            if (label && label !== id) {
+                this.#chosenLabels.set(normalized, label);
+            }
         }
 
         if (additions.length === 0) {
@@ -553,10 +643,15 @@ export default class MultiSelect extends LitElement {
     }
 
     /**
-     * @param {string} id
+     * @param {MultiSelectOption} option
      */
-    #addValue(id) {
-        this.#addValues([id]);
+    #chooseOption(option) {
+        this.#addValues([option]);
+        if (!this.keepQueryOnSelect) {
+            this._query = "";
+            this.#openSuggestions();
+        }
+        this.#focusInput();
     }
 
     /**
@@ -613,7 +708,7 @@ export default class MultiSelect extends LitElement {
      */
     #commitExactMatchOnDelimiter(delimiter) {
         const query = this._query.trim();
-        if (query.length === 0) {
+        if (!this._open || query.length === 0) {
             return false;
         }
 
@@ -626,10 +721,7 @@ export default class MultiSelect extends LitElement {
             return false;
         }
 
-        this.#addValue(exact.id);
-        this._query = "";
-        this.#queueSearch();
-        this.#focusInput();
+        this.#chooseOption(exact);
         return true;
     }
 
@@ -638,23 +730,18 @@ export default class MultiSelect extends LitElement {
             return;
         }
 
-        const active = this._suggestions[this._activeIndex];
         const query = this._query.trim();
-
-        if (active) {
-            this.#addValue(active.id);
-        } else if (query.length > 0) {
-            const exact = this.#findExactMatch(query);
-            if (exact) {
-                this.#addValue(exact.id);
-            } else if (this.allowUnknown) {
-                this.#addValue(query);
-            }
+        const option = this._open
+            ? (this._suggestions[this._activeIndex] ??
+              this.#findExactMatch(query))
+            : null;
+        if (option) {
+            this.#chooseOption(option);
+        } else if (this.allowUnknown && query) {
+            this.#addValues([query]);
+            this._query = "";
+            this.#openSuggestions();
         }
-
-        this._query = "";
-        this.#queueSearch();
-        this.#focusInput();
     }
 
     /**
@@ -667,7 +754,7 @@ export default class MultiSelect extends LitElement {
 
         if (
             event.target instanceof HTMLElement &&
-            event.target.closest(".pill-remove")
+            event.target.closest("input, button")
         ) {
             return;
         }
@@ -688,21 +775,25 @@ export default class MultiSelect extends LitElement {
         }
 
         this._query = input.value;
-        this.#queueSearch();
-        this._open = true;
+        if (event.isComposing) {
+            this.#closeSuggestions();
+        } else {
+            this.#openSuggestions();
+        }
     }
 
     #onInputFocus() {
         this._inputHasFocus = true;
-        this._open = true;
-        this.#queueSearch();
+        this.#openSuggestions();
     }
 
     #onInputBlur() {
+        const commit = (this._open || this._loading) && !this.disabled;
         this._inputHasFocus = false;
-        this._open = false;
-        this._activeIndex = -1;
-        void this.#commitExactMatchOnBlur();
+        this.#closeSuggestions();
+        if (commit) {
+            void this.#commitExactMatchOnBlur();
+        }
     }
 
     async #commitExactMatchOnBlur() {
@@ -716,10 +807,10 @@ export default class MultiSelect extends LitElement {
 
         if (!exact && this.search) {
             try {
-                const results = await this.search(query);
+                const { options } = searchPage(await this.search(query));
                 const lower = query.toLowerCase();
                 exact =
-                    results
+                    options
                         .map((result) => normalizeResult(result))
                         .find(
                             (suggestion) =>
@@ -730,19 +821,28 @@ export default class MultiSelect extends LitElement {
             }
         }
 
-        if (!exact || version !== this.#searchVersion) {
+        if (
+            !exact ||
+            version !== this.#searchVersion ||
+            this.disabled ||
+            !this.isConnected ||
+            this._inputHasFocus
+        ) {
             return;
         }
 
-        this.#addValue(exact.id);
+        this.#addValues([exact]);
         this._query = "";
-        this.#queueSearch();
     }
 
     /**
      * @param {ClipboardEvent} event
      */
     #onInputPaste(event) {
+        if (!this.allowUnknown || this.disabled) {
+            return;
+        }
+
         const text = event.clipboardData?.getData("text/plain") ?? "";
         if (!text.includes("\n")) {
             return;
@@ -756,16 +856,14 @@ export default class MultiSelect extends LitElement {
         event.preventDefault();
         this.#addValues(values);
         this._query = "";
-        this._open = false;
-        this.#queueSearch();
-        this.#focusInput();
+        this.#closeSuggestions();
     }
 
     /**
      * @param {KeyboardEvent} event
      */
     #onInputKeyDown(event) {
-        if (this.disabled) {
+        if (this.disabled || event.isComposing) {
             return;
         }
 
@@ -779,8 +877,19 @@ export default class MultiSelect extends LitElement {
         }
 
         if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+            if (!this.search) {
+                return;
+            }
+
             event.preventDefault();
             event.stopPropagation();
+
+            if (!this._open) {
+                if (!this._loading) {
+                    this.#openSuggestions();
+                }
+                return;
+            }
 
             if (this._suggestions.length === 0) {
                 return;
@@ -804,6 +913,13 @@ export default class MultiSelect extends LitElement {
         }
 
         if (event.key === "Enter") {
+            if (
+                !this._open &&
+                !this._loading &&
+                !(this.allowUnknown && this._query.trim())
+            ) {
+                return;
+            }
             event.preventDefault();
             event.stopPropagation();
             this.#confirmSelection();
@@ -816,20 +932,10 @@ export default class MultiSelect extends LitElement {
             return;
         }
 
-        if (event.key === "Tab") {
-            this._open = false;
-            this._activeIndex = -1;
-            return;
-        }
-
-        if (event.key === "Escape") {
-            if (!this._open) {
-                return;
-            }
+        if (event.key === "Escape" && (this._open || this._loading)) {
             event.preventDefault();
             event.stopPropagation();
-            this._open = false;
-            this._activeIndex = -1;
+            this.#closeSuggestions();
         }
     }
 
@@ -838,21 +944,49 @@ export default class MultiSelect extends LitElement {
      */
     #selectSuggestionByIndex(index) {
         const suggestion = this._suggestions[index];
-        if (!suggestion) {
-            return;
+        if (suggestion && this._open && !this.disabled) {
+            this.#chooseOption(suggestion);
+        }
+    }
+
+    #searchStatus() {
+        if (this._loading) {
+            return "Loading...";
+        }
+        if (this._searchFailed) {
+            return "Search failed. Edit the query to retry.";
         }
 
-        this.#addValue(suggestion.id);
-        this._query = "";
-        this.#queueSearch();
-        this.#focusInput();
+        const shown = this._suggestions.length;
+        const { totalMatches, totalItems } = this.#searchCounts;
+        let status = "";
+        if (shown === 0) {
+            status =
+                (totalMatches ?? 0) > 0
+                    ? "No additional matches"
+                    : "No matches";
+        } else if (this._query.trim() && totalMatches !== undefined) {
+            status =
+                totalMatches > shown
+                    ? `Showing ${formatCount(shown)} of ${formatCount(totalMatches)} matches`
+                    : `${formatCount(shown)} ${shown === 1 ? "match" : "matches"}`;
+        } else if (totalMatches !== undefined || totalItems !== undefined) {
+            status = `${formatCount(shown)} ${shown === 1 ? "suggestion" : "suggestions"}`;
+        }
+
+        return totalItems === undefined
+            ? status
+            : `${status} · ${formatCount(totalItems)} in catalogue`;
     }
 
     /** @returns {import("lit").HTMLTemplateResult} */
     render() {
         const label = this.label || "Choose options";
+        /** @type {Readonly<Record<string, string>>} */
+        const selectedLabels = this.selectedLabels ?? {};
+        const status = this.#searchStatus();
         const activeId =
-            this._activeIndex >= 0
+            this._open && this._activeIndex >= 0
                 ? this.#optionDomId(String(this._activeIndex))
                 : nothing;
 
@@ -863,25 +997,33 @@ export default class MultiSelect extends LitElement {
                 @mousedown=${(/** @type {MouseEvent} */ event) =>
                     this.#onControlMouseDown(event)}
             >
-                ${this.selectedValues.map(
-                    (value) =>
-                        html`<span class="pill" part="chip">
-                            <span class="pill-label">${value}</span>
-                            <button
-                                class="pill-remove"
-                                part="remove-button"
-                                type="button"
-                                aria-label=${"Remove " + value}
-                                ?disabled=${this.disabled}
-                                @click=${() => {
-                                    this.#removeValue(value);
-                                    this.#focusInput();
-                                }}
-                            >
-                                ×
-                            </button>
-                        </span>`
-                )}
+                ${this.selectedValues.map((value) => {
+                    const label = Object.hasOwn(selectedLabels, value)
+                        ? selectedLabels[value]
+                        : (this.#chosenLabels.get(value) ?? value);
+                    const fullLabel =
+                        label === value ? label : `${label} (${value})`;
+                    return html`<span
+                        class="pill"
+                        part="chip"
+                        title=${fullLabel}
+                    >
+                        <span class="pill-label">${label}</span>
+                        <button
+                            class="pill-remove"
+                            part="remove-button"
+                            type="button"
+                            aria-label=${"Remove " + fullLabel}
+                            ?disabled=${this.disabled}
+                            @click=${() => {
+                                this.#removeValue(value);
+                                this.#focusInput();
+                            }}
+                        >
+                            ×
+                        </button>
+                    </span>`;
+                })}
 
                 <input
                     class="query"
@@ -891,6 +1033,7 @@ export default class MultiSelect extends LitElement {
                     aria-label=${label}
                     aria-controls=${this.#listboxId}
                     aria-expanded=${this._open ? "true" : "false"}
+                    aria-busy=${this._loading ? "true" : nothing}
                     aria-autocomplete="list"
                     aria-activedescendant=${activeId}
                     placeholder=${this.placeholder}
@@ -902,62 +1045,82 @@ export default class MultiSelect extends LitElement {
                         this.#onInputPaste(event)}
                     @input=${(/** @type {InputEvent} */ event) =>
                         this.#onInput(event)}
+                    @compositionend=${() => this.#openSuggestions()}
                     @keydown=${(/** @type {KeyboardEvent} */ event) =>
                         this.#onInputKeyDown(event)}
                 />
             </div>
 
             <div
-                id=${this.#listboxId}
                 class="dropdown"
                 part="panel"
                 popover="auto"
                 ?hidden=${!this._open}
-                role="listbox"
-                aria-label=${label}
                 @toggle=${(/** @type {ToggleEvent} */ event) => {
-                    if (event.newState === "closed" && this._open) {
-                        this._open = false;
-                        this._activeIndex = -1;
+                    if (
+                        event.newState === "closed" &&
+                        this._open &&
+                        !(
+                            /** @type {HTMLElement} */ (
+                                event.currentTarget
+                            ).matches(":popover-open")
+                        )
+                    ) {
+                        this.#closeSuggestions();
                     }
                 }}
             >
+                <div
+                    id=${this.#listboxId}
+                    class="listbox"
+                    role="listbox"
+                    aria-label=${label}
+                >
+                    ${this._suggestions.map(
+                        (suggestion, index) =>
+                            html`<div
+                                id=${this.#optionDomId(String(index))}
+                                class="option ${
+                                    index === this._activeIndex ? "active" : ""
+                                }"
+                                role="option"
+                                part="option"
+                                aria-selected=${
+                                    index === this._activeIndex
+                                        ? "true"
+                                        : "false"
+                                }
+                                @mousedown=${(
+                                    /** @type {MouseEvent} */ event
+                                ) => event.preventDefault()}
+                                @mouseenter=${() => {
+                                    this._activeIndex = index;
+                                }}
+                                @click=${() => this.#selectSuggestionByIndex(index)}
+                            >
+                                <span
+                                    >${suggestion.label ?? suggestion.id}</span
+                                >
+                                ${
+                                    suggestion.detail
+                                        ? html`<small class="option-detail"
+                                              >${suggestion.detail}</small
+                                          >`
+                                        : nothing
+                                }
+                            </div>`
+                    )}
+                </div>
                 ${
-                    this._loading
-                        ? html`<div class="status">Loading...</div>`
+                    status
+                        ? html`<div
+                              class="status ${this._suggestions.length ? "summary" : ""}"
+                              role="status"
+                          >
+                              ${status}
+                          </div>`
                         : nothing
                 }
-                ${
-                    this._searchFailed
-                        ? html`<div class="status" role="status">
-                              Search failed. Edit the query to retry.
-                          </div>`
-                        : !this._loading && this._suggestions.length === 0
-                          ? html`<div class="status">No matches</div>`
-                          : nothing
-                }
-                ${this._suggestions.map(
-                    (suggestion, index) =>
-                        html`<div
-                            id=${this.#optionDomId(String(index))}
-                            class="option ${
-                                index === this._activeIndex ? "active" : ""
-                            }"
-                            role="option"
-                            part="option"
-                            aria-selected=${
-                                index === this._activeIndex ? "true" : "false"
-                            }
-                            @mousedown=${(/** @type {MouseEvent} */ event) =>
-                                event.preventDefault()}
-                            @mouseenter=${() => {
-                                this._activeIndex = index;
-                            }}
-                            @click=${() => this.#selectSuggestionByIndex(index)}
-                        >
-                            ${suggestion.label ?? suggestion.id}
-                        </div>`
-                )}
             </div>
         `;
     }

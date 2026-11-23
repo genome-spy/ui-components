@@ -113,15 +113,73 @@ try {
         ).toBeVisible();
 
         const search = page.getByRole("combobox", { name: "Find samples" });
+        await search.evaluate((input) => {
+            const field = input.getRootNode().host;
+            const search = field.search;
+            const { promise, resolve } = Promise.withResolvers();
+            field.search = async (query) => {
+                if (query === "") {
+                    await promise;
+                }
+                const options = await search(query);
+                return query === "group"
+                    ? { options, totalMatches: 3, totalItems: 16 }
+                    : options;
+            };
+            field.addEventListener("release-suggestions", () => resolve(), {
+                once: true,
+            });
+        });
+        await search.click();
+        await expect(search).toHaveAttribute("aria-busy", "true");
+        const suggestions = page.getByRole("listbox", { name: "Find samples" });
+        await expect(suggestions).toHaveCount(0);
+        await search.evaluate((input) => {
+            input
+                .getRootNode()
+                .host.dispatchEvent(new Event("release-suggestions"));
+        });
+        await expect(suggestions).toBeVisible();
+        const aligned = await search.evaluate((input) => {
+            const root = input.getRootNode();
+            const control = root
+                .querySelector(".control")
+                .getBoundingClientRect();
+            const popup = root
+                .querySelector(".dropdown")
+                .getBoundingClientRect();
+            return (
+                Math.abs(popup.left - control.left) < 1 &&
+                Math.abs(popup.top - control.bottom - 4) < 1
+            );
+        });
+        expect(aligned).toBe(true);
+
         await search.fill("unavailable");
         await expect(
             page.getByText("Search failed.", { exact: false })
         ).toBeVisible();
         await expect(page.getByText("No matches")).toHaveCount(0);
         await search.fill("group");
+        const groupOption = page.getByRole("option", { name: "Group A" });
+        await expect(groupOption).toBeVisible();
         await expect(
-            page.getByRole("option", { name: "Group A" })
+            page.getByText("Showing 1 of 3 matches · 16 in catalogue")
         ).toBeVisible();
+        await expect(suggestions.getByRole("status")).toHaveCount(0);
+        await search.press("Escape");
+        await expect(groupOption).toHaveCount(0);
+        await expect(search).not.toHaveAttribute("aria-activedescendant");
+        await search.press("ArrowDown");
+        await expect(groupOption).toBeVisible();
+
+        await search.evaluate((input) => input.setSelectionRange(0, 0));
+        const searchBox = await search.boundingBox();
+        assert(searchBox);
+        await search.click({
+            position: { x: searchBox.width - 8, y: searchBox.height / 2 },
+        });
+        expect(await search.evaluate((input) => input.selectionStart)).toBe(5);
 
         const region = page.getByRole("region", { name: "Import preview" });
         const table = region.getByRole("table");
