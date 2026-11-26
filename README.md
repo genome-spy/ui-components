@@ -368,6 +368,10 @@ Vitest. Run `npm test -- src/dialog.test.js` to check a single test file.
 `npm pack` builds the TypeScript declarations and Custom Elements Manifest
 before creating the package. Run `npm run test:packed-consumer` with Playwright
 Chromium installed to check the packaged imports and components in a browser.
+`npm run test:packed-build` checks the same archive's imports, strict consumer
+types and Vite build without a browser. Default push/PR CI uses that command;
+browser installation and acceptance require a manual CI run with
+`browser_tests=true`.
 
 See [Contributing](CONTRIBUTING.md) for Changesets, npm releases, and Storybook
 deployment.

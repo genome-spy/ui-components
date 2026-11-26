@@ -18,3 +18,7 @@ own their themes, data, and workflows.
 
 Keep source in JavaScript with JSDoc. Read the
 [development commands](README.md#development) and use Conventional Commits.
+
+Default push/PR CI must not install or launch browsers, including through nested
+scripts. Keep packed imports/types/build checks browser-free. Browser acceptance
+requires an explicit manual `browser_tests=true` run; the default is false.
