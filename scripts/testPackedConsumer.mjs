@@ -193,6 +193,11 @@ try {
         });
         expect(await search.evaluate((input) => input.selectionStart)).toBe(5);
 
+        // Clicking outside the native auto-popover closes it asynchronously.
+        // Finish the caret-placement check before reopening to test Escape.
+        await expect(search).toHaveAttribute("aria-expanded", "false");
+        await search.press("ArrowDown");
+        await expect(groupOption).toBeVisible();
         await search.press("Escape");
         await expect(groupOption).toHaveCount(0);
         await expect(search).toHaveValue("");
