@@ -1,5 +1,19 @@
 # @genome-spy/ui-components
 
+## 0.3.0
+
+### Minor Changes
+
+- 66494ac: Add focused-app shell, toolbar, task sidebar, entry and Home
+  presentation, retaining existing `gsa-*` tags/events and explicit
+  registration. Reuse the published form and context-menu styles without
+  changing them or adding an app palette. Shared bookmark menu/form helpers
+  remain presentation-only; apps own saved data and commands.
+- 66494ac: Add a native select with typed ID/label options, hidden placeholders,
+  disabled states and bounded long labels. Keep native keyboard behavior and the
+  platform picker fallback; registration is explicit through
+  `define/nativeSelect`.
+
 ## 0.2.0
 
 ### Minor Changes
