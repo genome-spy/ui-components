@@ -1,5 +1,13 @@
 # @genome-spy/ui-components
 
+## 0.3.1
+
+### Patch Changes
+
+- 992e81d: Show layers that must be embedded as images in the SVG export
+  preview. The raster scale control applies to these layers even when
+  rasterization of dense vector layers is disabled.
+
 ## 0.3.0
 
 ### Minor Changes
