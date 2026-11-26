@@ -9,6 +9,8 @@ import { fileURLToPath, URL } from "node:url";
 import { chromium } from "playwright";
 import { expect } from "playwright/test";
 import { build } from "vite";
+import { checkFocusedApps } from "./checkFocusedApps.mjs";
+import { checkNativeSelect } from "./checkNativeSelect.mjs";
 
 const packageDir = fileURLToPath(new URL("..", import.meta.url));
 const consumerDir = await mkdtemp(join(tmpdir(), "genomespy-ui-consumer-"));
@@ -79,7 +81,19 @@ try {
         ],
         { cwd: consumerDir, stdio: "inherit" }
     );
-    await build({ configFile: false, root: consumerDir, logLevel: "warn" });
+    await build({
+        configFile: false,
+        root: consumerDir,
+        logLevel: "warn",
+        build: {
+            rollupOptions: {
+                input: {
+                    main: join(consumerDir, "index.html"),
+                    focusedApp: join(consumerDir, "focusedApp.html"),
+                },
+            },
+        },
+    });
 
     const browser = await chromium.launch({
         channel: process.env.PLAYWRIGHT_CHROMIUM_CHANNEL,
@@ -89,7 +103,7 @@ try {
         const errors = [];
         page.on("pageerror", (error) => errors.push(error.message));
         const origin = "http://ui-components.local";
-        await page.route(origin + "/**", (route) => {
+        const serveAssets = (route) => {
             const { pathname } = new URL(route.request().url());
             return route.fulfill({
                 path: join(
@@ -98,7 +112,8 @@ try {
                     pathname === "/" ? "index.html" : pathname
                 ),
             });
-        });
+        };
+        await page.route(origin + "/**", serveAssets);
         await page.goto(origin);
 
         await expect(page.getByLabel("Dataset name")).toHaveCSS(
@@ -178,6 +193,11 @@ try {
         });
         expect(await search.evaluate((input) => input.selectionStart)).toBe(5);
 
+        // Clicking outside the native auto-popover closes it asynchronously.
+        // Finish the caret-placement check before reopening to test Escape.
+        await expect(search).toHaveAttribute("aria-expanded", "false");
+        await search.press("ArrowDown");
+        await expect(groupOption).toBeVisible();
         await search.press("Escape");
         await expect(groupOption).toHaveCount(0);
         await expect(search).toHaveValue("");
@@ -498,7 +518,30 @@ try {
             "picked.csv dropped.csv"
         );
 
+        const toolbar = page.locator("gs-toolbar-fixture");
+        const exportTable = toolbar.getByRole("button", {
+            name: "Export table",
+        });
+        await expect(exportTable).toHaveCSS("padding", "4px 12px");
+        await toolbar.evaluate((element) => {
+            element.style.setProperty("--gs-hover-background", "#123456");
+        });
+        await exportTable.hover();
+        await expect(exportTable).toHaveCSS(
+            "background-color",
+            "rgb(18, 52, 86)"
+        );
+        await exportTable.focus();
+        await exportTable.press("Enter");
+        await expect(toolbar).toHaveAttribute("data-clicked", "yes");
+        await expect(
+            toolbar.getByRole("button", { name: "Unavailable command" })
+        ).toBeDisabled();
+
+        await checkNativeSelect(page);
+
         expect(errors).toEqual([]);
+        await checkFocusedApps(browser, origin, serveAssets);
         process.stdout.write(
             "Packed UI components passed consumer type and browser checks.\n"
         );
