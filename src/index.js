@@ -14,7 +14,6 @@ export {
     default as MessageDialog,
     showMessageDialog,
 } from "./messageDialog.js";
-export { default as NativeSelect } from "./nativeSelect.js";
 export { default as CustomSelect } from "./customSelect.js";
 export { default as MultiSelect } from "./multiSelect.js";
 export { default as SearchableCheckboxList } from "./searchableCheckboxList.js";

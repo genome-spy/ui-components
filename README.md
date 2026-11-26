@@ -293,7 +293,6 @@ uses `--gs-theme-primary` and `--gs-divider-color`. Set
 | -------------------------- | ------------------------------- | ------------------------------------ |
 | `SearchableCheckboxList`   | `gs-searchable-checkbox-list`   | Filter and select known values       |
 | `MultiSelect`              | `gs-multi-select`               | Search for values and select tags    |
-| `NativeSelect`             | `gs-native-select`              | Pick a native option by ID           |
 | `CustomSelect`             | `gs-custom-select`              | Pick one rich option                 |
 | `DataGrid`                 | `gs-data-grid`                  | Preview records in a scrollable grid |
 | `Histogram`                | `gs-histogram`                  | Show a distribution and thresholds   |
@@ -380,21 +379,21 @@ browser installation and acceptance require a manual CI run with
 See [Contributing](CONTRIBUTING.md) for Changesets, npm releases, and Storybook
 deployment.
 
-### Native select
+### Native select styles
 
-Use `NativeSelect` for a native dropdown, and `CustomSelect` for rich option
-content. Import `@genome-spy/ui-components/define/nativeSelect` to register
-`gs-native-select`. Supply `label`, `options` (`value`, `label`, optional
-`disabled`/`title`) and `value`. An optional placeholder is hidden and disabled
-in the menu. A user choice emits one composed `change` event with
-`detail.value`; property assignments emit nothing. The caller validates and
-accepts the selection. `hide-label` hides only the visible label. This is a
-command control, not a form-associated field.
+Use a labelled HTML `<select>` with ordinary `<option>` children. Read the
+selected ID from `(event.currentTarget as HTMLSelectElement).value` in a
+standard `change` handler; property assignments do not emit events. Labels,
+choices, form feedback and accepted app state belong to the caller.
 
-The control uses the existing `formStyles`. Its own CSS only bounds the native
-picker, clips long selected text and reserves arrow space. Supporting browsers
-use the customizable native picker; others keep the operating-system picker. See
-**Components / NativeSelect** in Storybook.
+For long labels, opt in with `nativeSelectStyles` from
+`@genome-spy/ui-components/nativeSelectStyles` in your Lit styles and put
+`class="gs-native-select"` on the native select. Include a native
+`<button type="button"><selectedcontent></selectedcontent></button>` for
+selected text truncation. The module is independent of `formStyles`, has no
+registration or document side effects, and preserves the platform picker as its
+fallback. See **Utilities / NativeSelectStyles** in Storybook for markup and
+migration notes.
 
 ### Focused-app layout
 

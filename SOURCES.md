@@ -20,3 +20,12 @@ App-specific icons and their notices remain in the owning apps. Existing layout
 behavior scenarios run against the packed consumer. Apps retain workflow checks
 and the legacy selector bridge check. User direction during migration made UI
 Components' existing styles authoritative rather than copying app skins here.
+
+## Native select styles
+
+`nativeSelectStyles.js` retains the former NativeSelect's bounded picker and
+label layout as class-scoped optional Lit CSS. Existing form styles are
+unchanged. The wrapper, its registration and public option type are removed;
+callers own native labels, options, standard change events and FormData. The
+packed consumer retains the picker/keyboard/placeholder regression cases against
+actual native markup, including silent restoration and changed option labels.
