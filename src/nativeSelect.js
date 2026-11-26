@@ -13,9 +13,12 @@ import { formStyles } from "./styles.js";
  */
 
 /**
- * A labelled native select with a non-selectable placeholder and bounded long labels.
- * The caller owns options and accepted state; assigning properties emits no change.
- * This is a command picker, not a form-associated custom element.
+ * Choose one plain-text app setting, such as a reference, method or display mode.
+ * Keeps native keyboard/picker behavior, a non-selectable placeholder and bounded labels.
+ * The app supplies options, validates choices and saves accepted state. Assigning
+ * properties emits no change, so restoring state does not trigger app actions.
+ * For custom option markup use CustomSelect; for multiple values use MultiSelect.
+ * This control does not submit a value with an HTML form; use a normal select for that.
  *
  * @tag gs-native-select
  * @fires {CustomEvent<{value: string}>} change - A user choice; bubbles across shadow roots.
