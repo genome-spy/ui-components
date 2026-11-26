@@ -2,7 +2,9 @@
 
 Use `npm ci` and `npm run check` to verify changes locally. For component
 behavior, also check the relevant Storybook story. Pull request CI checks the
-packed package in Chromium and builds Storybook.
+packed package's types/build and builds Storybook without installing or
+launching a browser. Browser acceptance runs only when CI is started manually
+with `browser_tests=true` (default false).
 
 For a change that affects package consumers, run `npm run changeset` and commit
 the generated fragment with the change. During 0.x development, choose a patch

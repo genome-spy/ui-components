@@ -60,7 +60,8 @@
     "test:packed-consumer": "node scripts/testPackedConsumer.mjs",
     "test:tsc": "tsc -p tsconfig.json --noEmit",
     "storybook": "npm run build:manifest && storybook dev -p 6010",
-    "build-storybook": "npm run build:manifest && storybook build -o build/storybook"
+    "build-storybook": "npm run build:manifest && storybook build -o build/storybook",
+    "test:packed-build": "node scripts/testPackedConsumer.mjs --build-only"
   },
   "peerDependencies": {
     "lit": "^3.3.0"

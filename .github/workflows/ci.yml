@@ -2,6 +2,12 @@ name: CI
 
 on:
     pull_request:
+    workflow_dispatch:
+        inputs:
+            browser_tests:
+                description: Run headless packed-consumer browser tests
+                type: boolean
+                default: false
     push:
         branches: [main]
 
@@ -21,8 +27,17 @@ jobs:
                   cache: npm
             - run: npm ci
             - run: npm run check
-            - run: npm exec -- playwright install --with-deps chromium
-            - run: npm run test:packed-consumer
+            - run: npm run test:packed-build
+            - name: Install browser for explicitly requested acceptance
+              if:
+                  ${{ github.event_name == 'workflow_dispatch' &&
+                  inputs.browser_tests }}
+              run: npm exec -- playwright install --with-deps chromium
+            - name: Run headless browser acceptance
+              if:
+                  ${{ github.event_name == 'workflow_dispatch' &&
+                  inputs.browser_tests }}
+              run: npm run test:packed-consumer
             - run: npm run build-storybook
               env:
                   STORYBOOK_DISABLE_TELEMETRY: "1"

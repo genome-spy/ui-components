@@ -95,6 +95,21 @@ try {
         },
     });
 
+    if (process.argv.includes("--build-only")) {
+        process.stdout.write(
+            "Packed UI components passed consumer type and build checks.\n"
+        );
+    } else {
+        await checkBrowser(consumerDir);
+    }
+} finally {
+    await rm(consumerDir, { recursive: true, force: true });
+}
+
+/** Exercise real browser behavior only when the caller requests that phase.
+ * @param {string} consumerDir
+ */
+async function checkBrowser(consumerDir) {
     const browser = await chromium.launch({
         channel: process.env.PLAYWRIGHT_CHROMIUM_CHANNEL,
     });
@@ -548,6 +563,4 @@ try {
     } finally {
         await browser.close();
     }
-} finally {
-    await rm(consumerDir, { recursive: true, force: true });
 }
