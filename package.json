@@ -1,6 +1,6 @@
 {
   "name": "@genome-spy/ui-components",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Reusable GenomeSpy web components.",
   "license": "MIT",
   "type": "module",
