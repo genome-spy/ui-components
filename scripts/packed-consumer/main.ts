@@ -1,10 +1,11 @@
 import { faCheck } from "@fortawesome/free-solid-svg-icons";
-import { html } from "lit";
+import { LitElement, html } from "lit";
 import {
     BaseDialog,
     createMenuController,
     Dialog,
     showDialog,
+    type NativeSelect,
     type CustomSelect,
     type DataGrid,
     type MultiSelect,
@@ -12,6 +13,7 @@ import {
 } from "@genome-spy/ui-components";
 import "@genome-spy/ui-components/form.css";
 import "@genome-spy/ui-components/contextMenu.css";
+import "@genome-spy/ui-components/define/nativeSelect";
 import "@genome-spy/ui-components/define/multiSelect";
 import "@genome-spy/ui-components/define/customSelect";
 import "@genome-spy/ui-components/define/thresholdComparisonInput";
@@ -20,7 +22,10 @@ import "@genome-spy/ui-components/define/dropZone";
 import "@genome-spy/ui-components/define/imageExportDialog";
 import "@genome-spy/ui-components/define/dialog";
 import { Dialog as DialogModuleExport } from "@genome-spy/ui-components/dialog";
-import { dialogLayoutStyles } from "@genome-spy/ui-components/styles";
+import {
+    dialogLayoutStyles,
+    formStyles,
+} from "@genome-spy/ui-components/styles";
 import {
     PngExportDialog,
     SvgExportDialog,
@@ -155,3 +160,36 @@ opener.addEventListener("click", () =>
         opener
     )
 );
+
+const nativeSelect = document.querySelector("gs-native-select") as NativeSelect;
+nativeSelect.options = [
+    { value: "lung", label: "Lung" },
+    { value: "blood", label: "Blood" },
+];
+const chosenReferences: string[] = [];
+nativeSelect.addEventListener("change", (event) => {
+    chosenReferences.push(
+        (event as CustomEvent<{ value: string }>).detail.value
+    );
+    nativeSelect.dataset.choices = chosenReferences.join(",");
+});
+
+/** Styles stay in the caller's shadow root, with ordinary native button behavior. */
+class ToolbarFixture extends LitElement {
+    static styles = formStyles;
+
+    render() {
+        return html`<div class="toolbar-group">
+            <button
+                class="btn"
+                @click=${() => {
+                    this.dataset.clicked = "yes";
+                }}
+            >
+                Export table
+            </button>
+            <button class="btn" disabled>Unavailable command</button>
+        </div>`;
+    }
+}
+customElements.define("gs-toolbar-fixture", ToolbarFixture);

@@ -286,6 +286,7 @@ uses `--gs-theme-primary` and `--gs-divider-color`. Set
 | -------------------------- | ------------------------------- | ------------------------------------ |
 | `SearchableCheckboxList`   | `gs-searchable-checkbox-list`   | Filter and select known values       |
 | `MultiSelect`              | `gs-multi-select`               | Search for values and select tags    |
+| `NativeSelect`             | `gs-native-select`              | Pick a native option by ID           |
 | `CustomSelect`             | `gs-custom-select`              | Pick one rich option                 |
 | `DataGrid`                 | `gs-data-grid`                  | Preview records in a scrollable grid |
 | `Histogram`                | `gs-histogram`                  | Show a distribution and thresholds   |
@@ -370,3 +371,43 @@ Chromium installed to check the packaged imports and components in a browser.
 
 See [Contributing](CONTRIBUTING.md) for Changesets, npm releases, and Storybook
 deployment.
+
+### Native select
+
+Use `NativeSelect` for a native dropdown, and `CustomSelect` for rich option
+content. Import `@genome-spy/ui-components/define/nativeSelect` to register
+`gs-native-select`. Supply `label`, `options` (`value`, `label`, optional
+`disabled`/`title`) and `value`. An optional placeholder is hidden and disabled
+in the menu. A user choice emits one composed `change` event with
+`detail.value`; property assignments emit nothing. The caller validates and
+accepts the selection. `hide-label` hides only the visible label. This is a
+command control, not a form-associated field.
+
+The control uses the existing `formStyles`. Its own CSS only bounds the native
+picker, clips long selected text and reserves arrow space. Supporting browsers
+use the customizable native picker; others keep the operating-system picker. See
+**Components / NativeSelect** in Storybook.
+
+### Focused-app layout
+
+The `appShell`, `appToolbar`, `taskSidebar`, `dataEntry` and `homeButton`
+modules export named classes. Matching `define/` entries register their retained
+`gsa-*` tags; class imports do not register elements. Components use the
+existing `formStyles` export. Load the existing `form.css` for nested light-DOM
+controls and `contextMenu.css` for menus. For JavaScript-only HTTP delivery,
+load these through the app's normal style bootstrap. There is no new app palette
+or toolbar style preset, and the published style definitions remain unchanged.
+
+The shell retains app-owned `toolbar`, `viewport` and `task-panel` slots. Its
+keyboard/pointer divider bounds panel width between 280 and 560 pixels, up to
+half the available width. Collapse and the narrow drawer retain controls and
+width. The sidebar receives `tabs`, `activeId` and `collapsed`, then emits
+`gsa-task-select` with `detail.id`; the app accepts the change. Slots remain
+mounted across changes. See **Components / Focused app layout** in Storybook.
+
+Toolbar placement, menus and focus are presentation. App-supplied slots and
+`sessionCommands` callbacks own actual commands. The unchanged GenomeSpy bowtie
+and its notice ship with the toolbar. Entry emits file/example intentions
+without reading scientific data. Shared bookmark menu/form helpers take
+projections and callbacks; complete history/bookmark cards, persistence and
+saved formats stay app-owned. No public action dispatcher is introduced.

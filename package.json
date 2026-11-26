@@ -34,7 +34,10 @@
     "src/define/",
     "src/internal/",
     "!src/**/*.test.js",
-    "dist/"
+    "dist/",
+    "src/assets/",
+    "licenses/",
+    "SOURCES.md"
   ],
   "repository": {
     "type": "git",

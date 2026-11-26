@@ -1,0 +1,31 @@
+<!doctype html>
+<!-- Browser fixture for shared UI behavior, without any scientific application. -->
+<html lang="en">
+    <meta charset="utf-8" />
+    <title>Shared component test</title>
+    <style>
+        body {
+            margin: 0;
+            font: 14px system-ui;
+        }
+        [hidden] {
+            display: none !important;
+        }
+    </style>
+    <gsa-data-entry id="entry" prompt="Drop an AnnData file" accept=".h5ad">
+        <p slot="message" role="alert"></p>
+    </gsa-data-entry>
+    <gsa-app-shell id="workspace" hidden>
+        <header slot="toolbar">
+            <gsa-home-button></gsa-home-button>Application commands
+        </header>
+        <section slot="viewport"><canvas id="plot"></canvas></section>
+        <aside slot="task-panel" aria-label="Annotation controls">
+            <p id="notice">App-specific controls</p>
+            <button type="button">Review labels</button>
+        </aside>
+        <dialog aria-label="App dialog"><button>Close</button></dialog>
+    </gsa-app-shell>
+    <script type="module" src="/focusedApp.ts"></script>
+    <gs-job-progress id="progress"></gs-job-progress>
+</html>
