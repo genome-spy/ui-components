@@ -1,72 +1,55 @@
 import { Canvas, Meta } from "@storybook/addon-docs/blocks";
 import * as DialogStories from "./dialog.stories.js";
+import * as FormStories from "./formHelpers.stories.js";
 
-<Meta title="Utilities/Form Helpers" />
+<Meta of={FormStories} />
 
 # Form helpers
 
-Use `FormController` and `formField` to bind native fields to reactive
-properties on a Lit host and display validation errors. Add
-`DialogWizardController` when the form spans multiple dialog pages.
+Use `FormController` and `formField` to bind native controls to reactive Lit
+properties and show inline validation errors. The bookmark form below works
+inline and in a dialog.
 
-## Bind and validate a field
+Try **Save** with an empty title. The form shows the error and focuses Title.
+Enter a title and press **Enter** or choose **Save** to see the submitted
+values. Open **Show code** for the complete form component.
 
-Define fields once in the constructor. A validator receives a string and returns
-an error message or `null` when the value is valid.
+<Canvas of={FormStories.ValidatedForm} />
 
-```js
-import { LitElement, html } from "lit";
-import { FormController, formField } from "@genome-spy/ui-components";
-import { formStyles } from "@genome-spy/ui-components/styles";
+## Write a form
 
-class DatasetNameField extends LitElement {
-    static properties = { datasetName: { state: true } };
-    static styles = formStyles;
+Prefer native HTML form controls such as `<input>`, `<select>`, `<textarea>`,
+and `<button>` whenever they meet the form's needs.
 
-    constructor() {
-        super();
-        this.datasetName = "";
-        this.form = new FormController(this);
-        this.form.defineField("name", {
-            valueKey: "datasetName",
-            validate: (value) =>
-                value.trim() ? null : "Enter a dataset name.",
-        });
-    }
+1. Import `formStyles` from `@genome-spy/ui-components/styles` into the Lit
+   component that renders the controls. Wrap each label, control, and its
+   feedback in `.gs-form-group`. Use `<small>` for hints and link each label to
+   its control with `for` and `id`.
+2. Create a `FormController` in the constructor and call `defineField()` once
+   per field. Use `valueKey` to name a reactive string property. A validator
+   returns an error message or `null`. Set `affects` on a field when another
+   field needs revalidation after it changes.
+3. Apply `formField(form, name)` to each input, textarea, or select. It binds
+   `.value`, sets `aria-invalid`, and validates on blur and while editing a
+   field with an error. Render `form.feedback(name)` below the control and
+   reference the error with `aria-describedby` while it is visible.
+4. Handle the form's `submit` event. If `validateAll()` returns `true`, show the
+   errors and focus the first invalid field. Otherwise, pass the values to the
+   caller. `hasErrors()` can check validity without showing feedback. This form
+   uses `novalidate` so its handler can show the controller's messages,
+   including the error for whitespace-only titles.
 
-    render() {
-        return html`
-            <div class="gs-form-group">
-                <label for="dataset-name">Dataset name</label>
-                <input
-                    id="dataset-name"
-                    type="text"
-                    aria-describedby="dataset-name-feedback"
-                    ${formField(this.form, "name")}
-                />
-                <div id="dataset-name-feedback" aria-live="polite">
-                    ${this.form.feedback("name")}
-                </div>
-            </div>
-        `;
-    }
-}
+For native controls in light DOM, import `@genome-spy/ui-components/form.css`
+and add `.gs-form` to the form. See **Theming → Scoped palettes → Native Form
+Controls**.
 
-customElements.define("dataset-name-field", DatasetNameField);
-```
+## Use the form in a dialog
 
-- **`formField(form, name, options?)`** binds the string `.value` of an input,
-  textarea, or select and sets `aria-invalid` from the current error. It
-  validates on blur and as the user edits an invalid field. Set
-  `validateOnInput: "always"` to validate each edit.
-- **`FormController`** accepts an `affects` list of other field names when
-  validation depends on another value. On submit, call `validateAll()` to show
-  errors and guard submission. Its return value is `true` when errors are
-  present. `hasErrors()` checks validity without updating feedback.
-- **Styling.** `formStyles` styles fields and feedback inside `.gs-form-group`.
-  `BaseDialog` already includes it. For controls in ordinary HTML, import
-  `@genome-spy/ui-components/form.css` and add `gs-form` to the form. See
-  **Theming → Scoped palettes → Native Form Controls**.
+**Components → Dialog → Validated Form** renders the same bookmark form inside
+`BaseDialog`. The form supplies the fields and validation. The dialog supplies
+the title and footer, sends Save through `requestSubmit()`, and closes after a
+successful `bookmark-save` event. A nested Lit form imports `formStyles` for its
+own shadow root.
 
 ## Validate a dialog step
 

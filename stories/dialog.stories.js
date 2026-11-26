@@ -3,6 +3,8 @@ import BaseDialog, { showDialog } from "@genome-spy/ui-components/dialog";
 import DialogWizardController from "@genome-spy/ui-components/dialogWizardController";
 import { FormController } from "@genome-spy/ui-components/formController";
 import { formField } from "@genome-spy/ui-components/formField";
+import { bookmarkFormDialogTag } from "./bookmarkFormDialog.js";
+import bookmarkFormDialogSource from "./bookmarkFormDialog.js?raw";
 import { datasetSettingsTag } from "./slottedDialogForm.js";
 import slottedDialogFormSource from "./slottedDialogForm.js?raw";
 
@@ -159,6 +161,51 @@ export const SlottedForm = {
         },
     },
     render: () => document.createElement(datasetSettingsTag),
+};
+
+/** @param {MouseEvent} event */
+async function openBookmarkForm(event) {
+    const button = /** @type {HTMLButtonElement} */ (event.currentTarget);
+    const result = await showDialog(bookmarkFormDialogTag, undefined, {
+        mount: /** @type {HTMLElement} */ (button.parentElement),
+    });
+    const output = /** @type {HTMLOutputElement} */ (button.nextElementSibling);
+    if (result.ok) {
+        const { title } =
+            /** @type {import("./bookmarkForm.js").BookmarkValues} */ (
+                result.data
+            );
+        output.textContent = `Saved “${title}”.`;
+    } else {
+        output.textContent = "Canceled";
+    }
+}
+
+export const ValidatedForm = {
+    parameters: {
+        docs: {
+            description: {
+                story:
+                    "This dialog reuses the bookmark form from Utilities → Form Helpers. " +
+                    "The footer Save button calls `requestSubmit()` on the form. " +
+                    "The dialog reports a result and closes when it receives `bookmark-save` after validation succeeds.",
+            },
+            source: {
+                language: "javascript",
+                code: bookmarkFormDialogSource.trim(),
+            },
+        },
+    },
+    render: () => html`
+        <div>
+            <button type="button" @click=${openBookmarkForm}>
+                Open bookmark form
+            </button>
+            <output
+                style="display: block; margin-block-start: 0.75rem;"
+            ></output>
+        </div>
+    `,
 };
 
 /** @param {MouseEvent} event */

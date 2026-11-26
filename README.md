@@ -160,8 +160,9 @@ See **Components → Image Export Dialogs** in Storybook for examples.
 
 ## Style native forms
 
-Import the optional stylesheet and add `gs-form` to a form or a wrapper around
-several forms.
+Prefer native HTML form controls whenever they meet the form's needs. To style
+them, import the optional stylesheet and add `gs-form` to a form or a wrapper
+around several forms.
 
 ```js
 import "@genome-spy/ui-components/form.css";
@@ -179,6 +180,11 @@ components. For a form rendered inside a Lit shadow root, add the exported
 `formStyles` from `@genome-spy/ui-components/styles` to the element’s
 `static styles`. See **Theming → Scoped palettes → Native Form Controls** in
 Storybook to compare the two kinds of controls.
+
+Use `FormController` and `formField` to bind and validate fields in Lit. Use
+`DialogWizardController` to manage dialog steps. See **Utilities → Form
+Helpers** in Storybook for a validated form you can use inline or inside a
+dialog.
 
 ## Context menus and dropdowns
 
@@ -321,9 +327,6 @@ component counts visible suggestions after hiding selected values and applying
 Give the data preview a bounded height for row virtualization. Its `rowHeight`
 property sets the row height in pixels. The preview is a keyboard-scrollable
 table with sticky column headers.
-
-Use `FormController` and `formField` to validate input within a Lit component,
-and `DialogWizardController` to manage dialog steps.
 
 - Use `--gs-control-text`, `--gs-control-background`, `--gs-control-border`, and
   `--gs-control-radius` for common control styling. `--gs-divider-color` applies
