@@ -8,6 +8,21 @@ export async function checkNativeSelect(page) {
         exact: true,
     });
     const host = page.locator("#native-select-fixture");
+    // Opt-in styles must leave other native fields alone.
+    const unmarkedAppearance = await host.evaluate((form) => {
+        const unmarked = globalThis.document.createElement("select");
+        form.append(unmarked);
+        const sheet = form.querySelector("style").sheet;
+        try {
+            const enhanced = globalThis.getComputedStyle(unmarked).appearance;
+            sheet.disabled = true;
+            return [enhanced, globalThis.getComputedStyle(unmarked).appearance];
+        } finally {
+            sheet.disabled = false;
+            unmarked.remove();
+        }
+    });
+    expect(unmarkedAppearance[0]).toBe(unmarkedAppearance[1]);
     const placeholder = select.locator('option[value=""]');
     await expect(select).toHaveValue("");
     await expect(placeholder).toHaveText("Choose a reference");
@@ -97,6 +112,27 @@ export async function checkNativeSelect(page) {
     );
     await page.keyboard.press("Escape");
     await expect(select).toBeFocused();
+    // Forced colors uses the platform field rather than the enhanced picker.
+    await host.evaluate(() => {
+        globalThis.updateNativeSelect({
+            options: [
+                { value: "lung", label: "Lung" },
+                { value: "blood", label: "Blood" },
+            ],
+            value: "lung",
+        });
+    });
+    await page.emulateMedia({ forcedColors: "active" });
+    try {
+        await expect(select).toHaveCSS("appearance", "auto");
+        await select.focus();
+        // OS picker keyboard operation is unverified in macOS headless Chromium.
+        await select.selectOption("blood");
+        await expect(select).toHaveValue("blood");
+        await expect(select).toBeFocused();
+    } finally {
+        await page.emulateMedia({ forcedColors: "none" });
+    }
     await host.evaluate(() => {
         globalThis.updateNativeSelect({ disabled: true });
     });
