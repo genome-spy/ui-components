@@ -5,7 +5,6 @@ import {
     createMenuController,
     Dialog,
     showDialog,
-    type NativeSelect,
     type CustomSelect,
     type DataGrid,
     type MultiSelect,
@@ -13,7 +12,10 @@ import {
 } from "@genome-spy/ui-components";
 import "@genome-spy/ui-components/form.css";
 import "@genome-spy/ui-components/contextMenu.css";
-import "@genome-spy/ui-components/define/nativeSelect";
+import { nativeSelectStyles } from "@genome-spy/ui-components/nativeSelectStyles";
+import { render } from "lit";
+import { live } from "lit/directives/live.js";
+import { repeat } from "lit/directives/repeat.js";
 import "@genome-spy/ui-components/define/multiSelect";
 import "@genome-spy/ui-components/define/customSelect";
 import "@genome-spy/ui-components/define/thresholdComparisonInput";
@@ -161,18 +163,79 @@ opener.addEventListener("click", () =>
     )
 );
 
-const nativeSelect = document.querySelector("gs-native-select") as NativeSelect;
-nativeSelect.options = [
-    { value: "lung", label: "Lung" },
-    { value: "blood", label: "Blood" },
-];
+/** The fixture owns markup/state and consumes only the independent style export. */
+const nativeRoot = document.querySelector<HTMLElement>(
+    "#native-select-fixture"
+)!;
+const nativeState = {
+    value: "",
+    options: [
+        { value: "lung", label: "Lung" },
+        { value: "blood", label: "Blood" },
+    ],
+    disabled: false,
+    hideLabel: false,
+};
 const chosenReferences: string[] = [];
-nativeSelect.addEventListener("change", (event) => {
-    chosenReferences.push(
-        (event as CustomEvent<{ value: string }>).detail.value
+function updateNativeSelect(update: Partial<typeof nativeState>) {
+    Object.assign(nativeState, update);
+    render(
+        html`
+            <style>
+                ${nativeSelectStyles.cssText}
+            </style>
+            <label>
+                <span ?hidden=${nativeState.hideLabel}>Reference</span>
+                <select
+                    class="gs-native-select"
+                    name="reference"
+                    aria-label="Reference"
+                    ?disabled=${nativeState.disabled}
+                    @change=${(event: Event) => {
+                        nativeState.value = (
+                            event.currentTarget as HTMLSelectElement
+                        ).value;
+                        chosenReferences.push(nativeState.value);
+                        nativeRoot.dataset.choices = chosenReferences.join(",");
+                    }}
+                >
+                    <button type="button">
+                        <selectedcontent></selectedcontent>
+                    </button>
+                    <option
+                        value=""
+                        disabled
+                        hidden
+                        .selected=${live(nativeState.value === "")}
+                    >
+                        Choose a reference
+                    </option>
+                    ${repeat(
+                        nativeState.options,
+                        (option) =>
+                            JSON.stringify([option.value, option.label]),
+                        (option) => html`
+                            <option
+                                value=${option.value}
+                                .selected=${live(option.value === nativeState.value)}
+                            >
+                                ${option.label}
+                            </option>
+                        `
+                    )}
+                </select>
+            </label>
+        `,
+        nativeRoot
     );
-    nativeSelect.dataset.choices = chosenReferences.join(",");
-});
+}
+Object.assign(window, { updateNativeSelect });
+updateNativeSelect({});
+declare global {
+    interface Window {
+        updateNativeSelect: typeof updateNativeSelect;
+    }
+}
 
 /** Styles stay in the caller's shadow root, with ordinary native button behavior. */
 class ToolbarFixture extends LitElement {

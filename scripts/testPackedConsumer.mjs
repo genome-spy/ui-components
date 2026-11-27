@@ -46,6 +46,12 @@ try {
         });
     }
 
+    for (const removed of ["nativeSelect", "define/nativeSelect"]) {
+        assert.throws(() => resolveFromConsumer(pack.name + "/" + removed), {
+            code: "MODULE_NOT_FOUND",
+        });
+    }
+
     // Reuse npm ci's dependencies while resolving the library from the archive.
     const manifest = JSON.parse(
         await readFile(join(installed, "package.json"))
